@@ -81,7 +81,11 @@ begin
   WizardForm.WelcomeLabel1.Font.Color := clWhite;
   WizardForm.WelcomeLabel2.Font.Color := clWhite;
   
-  // Finished Page
+  // Finished Page (Fix White Background)
+  WizardForm.FinishedPage.Color := $2b2b2b;
+  WizardForm.FinishedLabel.Color := $2b2b2b;
+  WizardForm.FinishedHeadingLabel.Color := $2b2b2b;
+  
   WizardForm.FinishedLabel.Font.Color := clWhite;
   WizardForm.FinishedHeadingLabel.Font.Color := clWhite;
   
@@ -142,5 +146,13 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  // Ensure custom labels stay on top/visible if needed
+  // Force Color Update on Page Change (especially Finished Page)
+  if CurPageID = wpFinished then begin
+    WizardForm.FinishedPage.Color := $2b2b2b;
+    WizardForm.FinishedLabel.Color := $2b2b2b;
+    WizardForm.FinishedHeadingLabel.Color := $2b2b2b;
+    
+    WizardForm.FinishedLabel.Font.Color := clWhite;
+    WizardForm.FinishedHeadingLabel.Font.Color := clWhite;
+  end;
 end;
