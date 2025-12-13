@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Text.Json.Nodes;
+using PiNodeMonitorWinForm.Services;
 
 namespace PiNodeMonitorWinForm
 {
@@ -25,16 +26,16 @@ namespace PiNodeMonitorWinForm
         
         // Timer
         private readonly HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-        private Button btnMobile; // Dynamic button
+        private Button btnMobile; 
 
         // Wallet Controls
         private TextBox txtPublicKey;
         private Label lblBalance;
         private Button btnSaveKey;
         private Button btnChangeWallet;
-        private string _walletKey = "";
+        private WalletService _walletService;
         private NotifyIcon notifyIcon;
-        private decimal _lastBalance = -1; // Track previous balance for alerts
+        private decimal _lastBalance = -1; 
         
         public Form1()
         {
@@ -101,6 +102,9 @@ namespace PiNodeMonitorWinForm
             btnChangeWallet.Cursor = Cursors.Hand;
             this.Controls.Add(btnChangeWallet);
 
+            // Service Init
+            _walletService = new WalletService();
+
             // Toggle Logic
             Action<bool> ToggleWalletEdit = (editing) => {
                 txtPublicKey.Visible = editing;
@@ -112,23 +116,19 @@ namespace PiNodeMonitorWinForm
             btnChangeWallet.Click += (s, e) => ToggleWalletEdit(true);
 
             btnSaveKey.Click += (s, e) => {
-                _walletKey = txtPublicKey.Text.Trim();
-                try { File.WriteAllText("wallet.dat", _walletKey); } catch {}
+                _walletService.SaveKey(txtPublicKey.Text);
                 MessageBox.Show("Wallet Key Saved!");
                 UpdateWalletBalanceAsync(); 
                 ToggleWalletEdit(false);
             };
 
-            // Load saved key
-            try { 
-                if (File.Exists("wallet.dat")) {
-                    _walletKey = File.ReadAllText("wallet.dat").Trim();
-                    txtPublicKey.Text = _walletKey;
-                    ToggleWalletEdit(false); // IDLE Mode (Show Balance + Change Btn only)
-                } else {
-                    ToggleWalletEdit(true); // EDIT Mode (Show Input)
-                }
-            } catch { ToggleWalletEdit(true); }
+            // Load saved key state
+            if (!string.IsNullOrEmpty(_walletService.PublicKey)) {
+                txtPublicKey.Text = _walletService.PublicKey;
+                ToggleWalletEdit(false); 
+            } else {
+                ToggleWalletEdit(true); 
+            }
             // ---------------------------------------------------------
             // Mobile Connect Button
             // ---------------------------------------------------------
@@ -248,55 +248,22 @@ namespace PiNodeMonitorWinForm
 
         private async Task UpdateWalletBalanceAsync()
         {
-            if (string.IsNullOrEmpty(_walletKey) || !_walletKey.StartsWith("G")) return;
+            var bal = await _walletService.GetBalanceAsync();
+            if (bal.HasValue)
+            {
+                decimal dBal = bal.Value;
 
-            try
-            {
-                // Use a separate client or existing one (short timeout)
-                using (var wClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) })
+                // Alert Logic
+                if (_lastBalance != -1 && dBal > _lastBalance)
                 {
-                    var url = $"https://api.mainnet.minepi.com/accounts/{_walletKey}";
-                    var json = await wClient.GetStringAsync(url);
-                    
-                    // Simple Regex to find native balance
-                    // Look for: "balance": "123.456", ... "asset_type": "native" OR vice versa.
-                    // Horizon usually returns balances array.
-                    // We'll iterate manually or use JToken if we had Newtonsoft, but robust Regex is fine for lightweight.
-                    
-                    // Pattern: match balance value where asset_type follows or precedes as native.
-                    // Easier: Just parse known structure of Horizon response.
-                    // "balances": [ { "balance": "100.0000000", "asset_type": "native" } ]
-                    
-                    var match = System.Text.RegularExpressions.Regex.Match(json, "\"balance\"\\s*:\\s*\"([0-9.]+)\"[^}]*?\"asset_type\"\\s*:\\s*\"native\"");
-                    if (!match.Success) 
-                        match = System.Text.RegularExpressions.Regex.Match(json, "\"asset_type\"\\s*:\\s*\"native\"[^}]*?\"balance\"\\s*:\\s*\"([0-9.]+)\"");
-                        
-                    if (match.Success)
-                    {
-                        string bal = match.Groups[1].Value;
-                        decimal dBal = decimal.Parse(bal);
-                        
-                        // Alert Logic: If balance increased
-                        if (_lastBalance != -1 && dBal > _lastBalance)
-                        {
-                            decimal diff = dBal - _lastBalance;
-                            // Play Sound
-                            try { System.Media.SystemSounds.Exclamation.Play(); } catch {}
-                            
-                            // Show Balloon
-                            if (notifyIcon != null)
-                                notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
-                        }
-                        
-                        _lastBalance = dBal;
-                        lblBalance.Text = $"Wallet: {dBal:N2} π";
-                    }
+                    decimal diff = dBal - _lastBalance;
+                    try { System.Media.SystemSounds.Exclamation.Play(); } catch {}
+                    if (notifyIcon != null)
+                        notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
                 }
-            }
-            catch (Exception ex)
-            {
-                // Silent fail or show simple Text
-                // lblBalance.Text = "Wallet: Error";
+
+                _lastBalance = dBal;
+                if (lblBalance != null) lblBalance.Text = $"Wallet: {dBal:N2} π";
             }
         }
 
