@@ -258,6 +258,10 @@ namespace PiNodeMonitorWinForm
                 {
                     decimal diff = dBal - _lastBalance;
                     try { System.Media.SystemSounds.Exclamation.Play(); } catch {}
+                    
+                    // Log Deposit
+                    _walletService.LogDeposit(diff, dBal);
+
                     if (notifyIcon != null)
                         notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
                 }

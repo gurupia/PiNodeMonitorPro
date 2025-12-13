@@ -75,5 +75,16 @@ namespace PiNodeMonitorWinForm.Services
             }
             return null;
         }
+
+        public void LogDeposit(decimal amount, decimal newBalance)
+        {
+            try
+            {
+                // Format: Timestamp, Amount, TotalBalance
+                string logLine = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss},+{amount},Total: {newBalance}{Environment.NewLine}";
+                File.AppendAllText("transaction_log.csv", logLine);
+            }
+            catch { }
+        }
     }
 }
