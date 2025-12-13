@@ -99,6 +99,22 @@ namespace PiNodeMonitorWinForm
             btnSaveKey.ForeColor = Color.White;
             this.Controls.Add(btnSaveKey);
 
+            var btnSmsConfig = new Button();
+            btnSmsConfig.Text = "💬"; // SMS Settings Icon
+            btnSmsConfig.Size = new Size(30, 25);
+            btnSmsConfig.Location = new Point(490, baseY + 25);
+            btnSmsConfig.FlatStyle = FlatStyle.Flat;
+            btnSmsConfig.ForeColor = Color.LightSkyBlue;
+            btnSmsConfig.Cursor = Cursors.Hand;
+            btnSmsConfig.Click += (s, e) => {
+                using (var frm = new SmsSettingsForm()) {
+                    if (frm.ShowDialog() == DialogResult.OK) {
+                        _smsService.LoadSettings();
+                    }
+                }
+            };
+            this.Controls.Add(btnSmsConfig);
+
             btnChangeWallet = new Button();
             btnChangeWallet.Text = "Change Address";
             btnChangeWallet.Size = new Size(120, 25);
