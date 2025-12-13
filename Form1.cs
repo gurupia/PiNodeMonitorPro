@@ -209,6 +209,37 @@ namespace PiNodeMonitorWinForm
 
             // Initial Load
             _ = UpdateDashboardAsync();
+            
+            // Apply Image 1 Style Theme
+            ApplyDarkBlueTheme();
+        }
+
+        private void ApplyDarkBlueTheme()
+        {
+            // Deep Blue Background (Image 1 Style)
+            this.BackColor = Color.FromArgb(40, 60, 90); 
+
+            void RecursivelyStyle(Control c)
+            {
+                foreach (Control child in c.Controls)
+                {
+                    if (child is Label || child is GroupBox || child is CheckBox || child is RadioButton)
+                    {
+                        child.ForeColor = Color.White;
+                    }
+                    if (child.HasChildren) RecursivelyStyle(child);
+                }
+            }
+            RecursivelyStyle(this);
+
+            // Restore/Force Specific Colors
+            if (lblBalance != null) lblBalance.ForeColor = Color.Gold;
+            
+            // TextBoxes
+            if (txtPublicKey != null) {
+                txtPublicKey.BackColor = Color.FromArgb(30, 45, 70);
+                txtPublicKey.ForeColor = Color.Yellow;
+            }
         }
 
         // Designer event stub
