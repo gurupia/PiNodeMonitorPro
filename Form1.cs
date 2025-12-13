@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Text.Json.Nodes;
 using PiNodeMonitorWinForm.Services;
+using PiNodeMonitorWinForm.Services.Sms;
 
 namespace PiNodeMonitorWinForm
 {
@@ -23,7 +24,7 @@ namespace PiNodeMonitorWinForm
         private bool _wasSynced = false;
         private int _totalSeconds = 0;
         private int _totalSyncedSeconds = 0;
-        
+
         // Timer
         private readonly HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         private Button btnMobile; 
@@ -34,6 +35,7 @@ namespace PiNodeMonitorWinForm
         private Button btnSaveKey;
         private Button btnChangeWallet;
         private WalletService _walletService;
+        private SmsService _smsService;
         private NotifyIcon notifyIcon;
         private decimal _lastBalance = -1; 
         
@@ -61,6 +63,10 @@ namespace PiNodeMonitorWinForm
             
             // Start Mobile Server
             Task.Run(() => MobileServer.StartServerAsync());
+            
+            // Service Init
+            _walletService = new WalletService();
+            _smsService = new SmsService();
 
             // ---------------------------------------------------------
             // Wallet UI Implementation (Clean Dashboard Mode)
@@ -262,6 +268,9 @@ namespace PiNodeMonitorWinForm
                     // Log Deposit
                     _walletService.LogDeposit(diff, dBal);
 
+                    // SMS Alert
+                    _ = _smsService.SendAlertAsync($"[PiNode] Deposit! +{diff:0.##} Pi. Total: {dBal:0.##}");
+                    
                     if (notifyIcon != null)
                         notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
                 }
