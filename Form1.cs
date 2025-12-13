@@ -27,10 +27,19 @@ namespace PiNodeMonitorWinForm
         private readonly HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         private Button btnMobile; // Dynamic button
 
+        // Wallet Controls
+        private TextBox txtPublicKey;
+        private Label lblBalance;
+        private Button btnSaveKey;
+        private Button btnChangeWallet;
+        private string _walletKey = "";
+        private NotifyIcon notifyIcon;
+        private decimal _lastBalance = -1; // Track previous balance for alerts
+        
         public Form1()
         {
             InitializeComponent();
-            this.Height += 65; // Make room for Footer and spacing
+            this.Height += 120; // Increased height for Wallet UI + Footer
             this.Text = "Pi Node Monitor Pro (Fixed v2)";
             
             try 
@@ -42,16 +51,92 @@ namespace PiNodeMonitorWinForm
                 }
             } 
             catch { }
+
+            // Initialize Notification
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = this.Icon;
+            notifyIcon.Visible = true;
+            notifyIcon.Text = "Pi Node Monitor Pro";
             
             // Start Mobile Server
             Task.Run(() => MobileServer.StartServerAsync());
 
-            // Add Mobile Connect Button dynamically
+            // ---------------------------------------------------------
+            // Wallet UI Implementation (Clean Dashboard Mode)
+            // ---------------------------------------------------------
+            int baseY = this.ClientSize.Height - 160; 
+            
+            lblBalance = new Label();
+            lblBalance.Text = "Wallet: -- π";
+            lblBalance.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            lblBalance.ForeColor = Color.Gold;
+            lblBalance.BackColor = Color.Transparent;
+            lblBalance.AutoSize = true;
+            lblBalance.Location = new Point(20, baseY);
+            this.Controls.Add(lblBalance);
+
+            txtPublicKey = new TextBox();
+            txtPublicKey.PlaceholderText = "Paste Public Key (G...)";
+            txtPublicKey.Size = new Size(420, 25); // Widened to 420px
+            txtPublicKey.Location = new Point(20, baseY + 25);
+            txtPublicKey.BackColor = Color.FromArgb(40, 40, 40);
+            txtPublicKey.ForeColor = Color.White;
+            txtPublicKey.BorderStyle = BorderStyle.FixedSingle;
+            this.Controls.Add(txtPublicKey);
+
+            btnSaveKey = new Button();
+            btnSaveKey.Text = "💾";
+            btnSaveKey.Size = new Size(30, 25);
+            btnSaveKey.Location = new Point(450, baseY + 25); // Adjusted X to 450
+            btnSaveKey.FlatStyle = FlatStyle.Flat;
+            btnSaveKey.ForeColor = Color.White;
+            this.Controls.Add(btnSaveKey);
+
+            btnChangeWallet = new Button();
+            btnChangeWallet.Text = "Change Address";
+            btnChangeWallet.Size = new Size(120, 25);
+            btnChangeWallet.Location = new Point(20, baseY + 25);
+            btnChangeWallet.FlatStyle = FlatStyle.Flat;
+            btnChangeWallet.ForeColor = Color.Gray; 
+            btnChangeWallet.Cursor = Cursors.Hand;
+            this.Controls.Add(btnChangeWallet);
+
+            // Toggle Logic
+            Action<bool> ToggleWalletEdit = (editing) => {
+                txtPublicKey.Visible = editing;
+                btnSaveKey.Visible = editing;
+                btnChangeWallet.Visible = !editing;
+                if (editing) txtPublicKey.Focus();
+            };
+
+            btnChangeWallet.Click += (s, e) => ToggleWalletEdit(true);
+
+            btnSaveKey.Click += (s, e) => {
+                _walletKey = txtPublicKey.Text.Trim();
+                try { File.WriteAllText("wallet.dat", _walletKey); } catch {}
+                MessageBox.Show("Wallet Key Saved!");
+                UpdateWalletBalanceAsync(); 
+                ToggleWalletEdit(false);
+            };
+
+            // Load saved key
+            try { 
+                if (File.Exists("wallet.dat")) {
+                    _walletKey = File.ReadAllText("wallet.dat").Trim();
+                    txtPublicKey.Text = _walletKey;
+                    ToggleWalletEdit(false); // IDLE Mode (Show Balance + Change Btn only)
+                } else {
+                    ToggleWalletEdit(true); // EDIT Mode (Show Input)
+                }
+            } catch { ToggleWalletEdit(true); }
+            // ---------------------------------------------------------
+            // Mobile Connect Button
+            // ---------------------------------------------------------
             btnMobile = new Button();
             btnMobile.Text = "📱 Mobile Connect";
             btnMobile.Size = new Size(140, 40);
             // Position above Footer (35px) with padding
-            btnMobile.Location = new Point(this.ClientSize.Width - 155, this.ClientSize.Height - 90); 
+            btnMobile.Location = new Point(this.ClientSize.Width - 155, this.ClientSize.Height - 100); 
             btnMobile.BackColor = Color.RebeccaPurple;
             btnMobile.ForeColor = Color.White;
             btnMobile.FlatStyle = FlatStyle.Flat;
@@ -130,10 +215,67 @@ namespace PiNodeMonitorWinForm
         private void timer1_Tick(object sender, EventArgs e) { }
         private void btnToggleNode_Click(object sender, EventArgs e) { _ = ToggleNodeAsync(); }
 
+        private async Task UpdateWalletBalanceAsync()
+        {
+            if (string.IsNullOrEmpty(_walletKey) || !_walletKey.StartsWith("G")) return;
+
+            try
+            {
+                // Use a separate client or existing one (short timeout)
+                using (var wClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) })
+                {
+                    var url = $"https://api.mainnet.minepi.com/accounts/{_walletKey}";
+                    var json = await wClient.GetStringAsync(url);
+                    
+                    // Simple Regex to find native balance
+                    // Look for: "balance": "123.456", ... "asset_type": "native" OR vice versa.
+                    // Horizon usually returns balances array.
+                    // We'll iterate manually or use JToken if we had Newtonsoft, but robust Regex is fine for lightweight.
+                    
+                    // Pattern: match balance value where asset_type follows or precedes as native.
+                    // Easier: Just parse known structure of Horizon response.
+                    // "balances": [ { "balance": "100.0000000", "asset_type": "native" } ]
+                    
+                    var match = System.Text.RegularExpressions.Regex.Match(json, "\"balance\"\\s*:\\s*\"([0-9.]+)\"[^}]*?\"asset_type\"\\s*:\\s*\"native\"");
+                    if (!match.Success) 
+                        match = System.Text.RegularExpressions.Regex.Match(json, "\"asset_type\"\\s*:\\s*\"native\"[^}]*?\"balance\"\\s*:\\s*\"([0-9.]+)\"");
+                        
+                    if (match.Success)
+                    {
+                        string bal = match.Groups[1].Value;
+                        decimal dBal = decimal.Parse(bal);
+                        
+                        // Alert Logic: If balance increased
+                        if (_lastBalance != -1 && dBal > _lastBalance)
+                        {
+                            decimal diff = dBal - _lastBalance;
+                            // Play Sound
+                            try { System.Media.SystemSounds.Exclamation.Play(); } catch {}
+                            
+                            // Show Balloon
+                            if (notifyIcon != null)
+                                notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
+                        }
+                        
+                        _lastBalance = dBal;
+                        lblBalance.Text = $"Wallet: {dBal:N2} π";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Silent fail or show simple Text
+                // lblBalance.Text = "Wallet: Error";
+            }
+        }
+
         private async Task UpdateDashboardAsync()
         {
             try 
             {
+                // Also update wallet occasionally
+                await UpdateWalletBalanceAsync();
+
                 // Update Uptime
                 _totalSeconds += 3;
                 TimeSpan t = TimeSpan.FromSeconds(_totalSeconds);
