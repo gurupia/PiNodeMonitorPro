@@ -6,12 +6,19 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico">
+      <LogicalName>PiNodeMonitorWinForm.app.ico</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.7.0" />
   </ItemGroup>

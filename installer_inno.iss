@@ -57,29 +57,90 @@ Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""{#MyAppN
 
 [Code]
 var
+  DeveloperLabel: TNewStaticText;
   CopyrightLabel: TNewStaticText;
 
-procedure LinkClick(Sender: TObject);
+procedure DeveloperLabelClick(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
-  // ShellExec(Verb, Filename, Params, WorkingDir, ShowCmd, Wait, ErrorCode)
+  // Open the website
   ShellExec('open', 'https://gurupia.github.io', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
 procedure InitializeWizard;
 begin
+  // -----------------------------------------------------------------
+  // Dark Theme Implementation
+  // -----------------------------------------------------------------
+  WizardForm.Color := $2b2b2b; // Dark Grey Background
+  WizardForm.Font.Color := clWhite; // General Font Color
+  
+  // Update Standard Labels
+  // Welcome Page
+  WizardForm.WelcomeLabel1.Font.Color := clWhite;
+  WizardForm.WelcomeLabel2.Font.Color := clWhite;
+  
+  // Finished Page
+  WizardForm.FinishedLabel.Font.Color := clWhite;
+  WizardForm.FinishedHeadingLabel.Font.Color := clWhite;
+  
+  // Inner Pages (Select Dir, Components, etc.)
+  WizardForm.InnerPage.Color := $2b2b2b;
+  WizardForm.MainPanel.Color := $2b2b2b;
+  
+  WizardForm.PageNameLabel.Font.Color := clWhite;
+  WizardForm.PageDescriptionLabel.Font.Color := clSilver; // Slightly dimmer
+  
+  // Checkboxes & Radio Buttons (Make text transparent/white)
+  // Converting standard controls is tricky, but setting parent font usually works for labels.
+  
+  // Bevels (Lines) - Hide or recolor if possible, mainly hide to keep clean
+  WizardForm.BeveledLabel.Visible := False;
+
+  // Enhanced Controls Coloring (Inputs, Memos, Lists)
+  WizardForm.DirEdit.Color := $383838;
+  WizardForm.DirEdit.Font.Color := clWhite;
+  
+  WizardForm.GroupEdit.Color := $383838;
+  WizardForm.GroupEdit.Font.Color := clWhite;
+  
+  WizardForm.ReadyMemo.Color := $383838;
+  WizardForm.ReadyMemo.Font.Color := clWhite;
+  
+  // Tasks List (Checkboxes)
+  WizardForm.TasksList.Color := $2b2b2b;
+  WizardForm.TasksList.Font.Color := clWhite;
+  
+  // -----------------------------------------------------------------
+  // Footer: Developer & Copyright
+  // -----------------------------------------------------------------
+  
+  // Copyright Label (Bottom Left)
   CopyrightLabel := TNewStaticText.Create(WizardForm);
   CopyrightLabel.Parent := WizardForm;
-  CopyrightLabel.Caption := 'Visit Website: https://gurupia.github.io';
-  CopyrightLabel.Left := ScaleX(16);
-  CopyrightLabel.Top := WizardForm.BackButton.Top + ScaleY(4); 
-  
-  // Make it look like a link
-  CopyrightLabel.Font.Color := clBlue;
-  CopyrightLabel.Cursor := crHand;
-  CopyrightLabel.Font.Style := [fsUnderline];
-  
-  // Bind Click Event
-  CopyrightLabel.OnClick := @LinkClick;
+  CopyrightLabel.Caption := 'Copyright (c) 2025 GuruPia. All rights reserved.';
+  CopyrightLabel.Font.Color := clSilver;
+  CopyrightLabel.Font.Size := 8;
+  CopyrightLabel.Top := WizardForm.ClientHeight - 25;
+  CopyrightLabel.Left := 15;
+  CopyrightLabel.Anchors := [akLeft, akBottom];
+
+  // Developer Link (Bottom Left, stacked above Copyright)
+  DeveloperLabel := TNewStaticText.Create(WizardForm);
+  DeveloperLabel.Parent := WizardForm;
+  DeveloperLabel.Caption := 'Developed by gurupia.github.io';
+  DeveloperLabel.Cursor := crHandPoint;
+  DeveloperLabel.Font.Color := $00ffff; // Yellow/Cyan mix
+  DeveloperLabel.Font.Style := [fsBold, fsUnderline];
+  DeveloperLabel.Font.Size := 9;
+  DeveloperLabel.Top := WizardForm.ClientHeight - 45; // Moved up
+  DeveloperLabel.Left := 15; // Moved to Left
+  DeveloperLabel.Anchors := [akLeft, akBottom];
+  DeveloperLabel.OnClick := @DeveloperLabelClick;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  // Ensure custom labels stay on top/visible if needed
 end;

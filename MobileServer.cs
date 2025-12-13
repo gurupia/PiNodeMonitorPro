@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 
 namespace PiNodeMonitorWinForm
@@ -14,6 +13,7 @@ namespace PiNodeMonitorWinForm
     {
         private static WebApplication? _app;
         public static string CurrentIpAddress { get; private set; } = "127.0.0.1";
+        public static string PublicIpAddress { get; private set; } = "Unknown";
         public static int Port { get; private set; } = 5000;
         public static string CurrentPin { get; private set; } = "0000";
 
@@ -26,12 +26,14 @@ namespace PiNodeMonitorWinForm
 
             try
             {
-                // 1. Find Local IP & Generate PIN
+                // 1. Find IP Addresses & Generate PIN
                 CurrentIpAddress = GetLocalIpAddress();
-                CurrentPin = new Random().Next(1000, 9999).ToString(); // 4-digit PIN
+                _ = DetectPublicIpAsync(); // Run in background
+                CurrentPin = new Random().Next(1000, 9999).ToString(); 
 
                 var builder = WebApplication.CreateBuilder();
                 
+                // Configure Kestrel to listen on all interfaces
                 builder.WebHost.ConfigureKestrel(options =>
                 {
                     options.ListenAnyIP(Port);
@@ -46,8 +48,8 @@ namespace PiNodeMonitorWinForm
                 // API: Get Status JSON (Protected by PIN)
                 _app.MapGet("/api/status", (HttpContext context) => 
                 {
-                    string pin = context.Request.Query["pin"].ToString();
-                    if (pin != CurrentPin) return Results.Unauthorized();
+                    string? pin = context.Request.Query["pin"];
+                    if (string.IsNullOrEmpty(pin) || pin != CurrentPin) return Results.Unauthorized();
 
                     return Results.Json(CurrentStatus);
                 });
@@ -67,12 +69,13 @@ namespace PiNodeMonitorWinForm
                 System.Diagnostics.Debug.WriteLine($"Server Error: {ex.Message}");
             }
         }
-        
+
         public static async Task StopServerAsync()
         {
             if (_app != null)
             {
                 await _app.StopAsync();
+                await _app.DisposeAsync();
                 _app = null;
             }
         }
@@ -81,17 +84,35 @@ namespace PiNodeMonitorWinForm
         {
             try 
             {
-                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
-                foreach (var ip in host.AddressList)
+                // Robust way to find the interface connected to the internet
+                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
                 {
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        return ip.ToString();
-                    }
+                    socket.Connect("8.8.8.8", 65530);
+                    IPEndPoint? endPoint = socket.LocalEndPoint as IPEndPoint;
+                    return endPoint?.Address.ToString() ?? "127.0.0.1";
                 }
             }
-            catch {}
-            return "127.0.0.1";
+            catch 
+            {
+                // Fallback
+                return "127.0.0.1";
+            }
+        }
+
+        private static async Task DetectPublicIpAsync()
+        {
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(5);
+                    PublicIpAddress = await client.GetStringAsync("https://api.ipify.org");
+                }
+            }
+            catch 
+            {
+                PublicIpAddress = "Error";
+            }
         }
 
         // Simple Mobile Dashboard HTML
@@ -112,10 +133,11 @@ namespace PiNodeMonitorWinForm
         .status.ok { color: #28a745; }
         .status.warn { color: #ffc107; }
         .status.err { color: #dc3545; }
-        .metric { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .metric { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
         .metric:last-child { border-bottom: none; }
-        .label { color: #666; }
-        .value { font-weight: bold; color: #333; }
+        .label { color: #666; font-size: 14px; }
+        .value { font-weight: bold; color: #333; font-size: 15px; }
+        .section-title { text-align: left; font-size: 12px; font-weight: bold; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
         
         /* Login Modal */
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
@@ -139,17 +161,49 @@ namespace PiNodeMonitorWinForm
         <h1>Pi Node Monitor</h1>
         <p style='color:#666; font-size:12px;'>Real-time Dashboard</p>
 
+        <!-- Main Status Card -->
         <div class='card'>
-            <div class='label'>Node Status</div>
+            <div class='label'>Current Status</div>
             <div id='stateText' class='status'>Loading...</div>
             <div id='blockInfo' style='font-size:14px; color:#555;'></div>
         </div>
 
+        <!-- Network & Block Info -->
         <div class='card'>
-            <div class='metric'><span class='label'>Incoming (Peers)</span><span id='valIn' class='value'>-</span></div>
-            <div class='metric'><span class='label'>Outgoing (Peers)</span><span id='valOut' class='value'>-</span></div>
-            <div class='metric'><span class='label'>Protocol Ver</span><span id='valProto' class='value'>-</span></div>
-            <div class='metric'><span class='label'>Latest Block</span><span id='valLedger' class='value'>-</span></div>
+            <div class='section-title'>Network</div>
+            <div class='metric'>
+                <span class='label'>Outgoing (Target: 8)</span>
+                <span id='valOut' class='value' style='color:#007bff'>-</span>
+            </div>
+            <div class='metric'>
+                <span class='label'>Incoming (Peers)</span>
+                <span id='valIn' class='value'>-</span>
+            </div>
+            <div class='metric'>
+                <span class='label'>Local Block</span>
+                <span id='valLedger' class='value'>-</span>
+            </div>
+            <div class='metric'>
+                <span class='label'>Ledger Age</span>
+                <span id='valAge' class='value'>-</span>
+            </div>
+        </div>
+
+        <!-- System & Consensus Info -->
+        <div class='card'>
+            <div class='section-title'>System & Consensus</div>
+            <div class='metric'>
+                <span class='label'>Protocol Ver</span>
+                <span id='valProto' class='value'>-</span>
+            </div>
+            <div class='metric'>
+                <span class='label'>Container Uptime</span>
+                <span id='valUptime' class='value'>-</span>
+            </div>
+             <div class='metric'>
+                <span class='label'>Latest Consensus</span>
+                <span class='value' style='color:#28a745'>Synced</span>
+            </div>
         </div>
         
         <div style='color:#aaa; font-size:11px; margin-top:30px;'>
@@ -168,7 +222,6 @@ namespace PiNodeMonitorWinForm
                 return;
             }
             userPin = input;
-            // Verify by first fetch
             checkStatus();
         }
 
@@ -183,13 +236,11 @@ namespace PiNodeMonitorWinForm
                 
                 const data = await response.json();
                 
-                // Login Success
                 document.getElementById('loginOverlay').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
                 
                 updateUI(data);
                 
-                // Start Loop
                 if (!window.loopStarted) {
                     window.loopStarted = true;
                     setInterval(checkStatus, 3000);
@@ -208,13 +259,25 @@ namespace PiNodeMonitorWinForm
         function updateUI(data) {
             const stateEl = document.getElementById('stateText');
             stateEl.innerText = data.state;
-            stateEl.className = 'status ' + (data.state === 'Synced!' ? 'ok' : 'warn');
+            
+            // Outgoing >= 8 is GOOD
+            const isGood = (data.state === 'Synced!' && data.outgoing >= 8);
+            const isWarn = (!isGood && (data.state === 'Synced!' || data.outgoing > 0));
+            
+            if (isGood) stateEl.className = 'status ok';
+            else if (isWarn) stateEl.className = 'status warn';
+            else stateEl.className = 'status err';
             
             document.getElementById('valIn').innerText = data.incoming;
             document.getElementById('valOut').innerText = data.outgoing;
+            document.getElementById('valOut').style.color = (data.outgoing >= 8) ? '#28a745' : '#dc3545';
+            
             document.getElementById('valProto').innerText = data.protocolVersion;
             document.getElementById('valLedger').innerText = data.localBlock;
-            document.getElementById('blockInfo').innerText = 'Ledger Age: ' + data.ledgerAge + 's';
+            document.getElementById('valAge').innerText = data.ledgerAge + 's';
+            
+            document.getElementById('valUptime').innerText = data.uptime || '-';
+            document.getElementById('blockInfo').innerText = 'Block: ' + data.localBlock;
         }
     </script>
 </body>
@@ -230,5 +293,6 @@ namespace PiNodeMonitorWinForm
         public string LocalBlock { get; set; } = "0";
         public string ProtocolVersion { get; set; } = "-";
         public int LedgerAge { get; set; }
+        public string Uptime { get; set; } = "-"; 
     }
 }
