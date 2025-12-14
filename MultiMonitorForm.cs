@@ -58,11 +58,14 @@ namespace PiNodeMonitorWinForm
             btnAdd.BackColor = Color.SteelBlue;
             btnAdd.FlatStyle = FlatStyle.Flat;
             btnAdd.Click += BtnAdd_Click;
-
             pnlTop.Controls.AddRange(new Control[] { lbl1, txtAlias, lbl2, txtIp, lbl3, txtPin, btnAdd });
             this.Controls.Add(pnlTop);
 
-            // --- Grid ---
+            // --- Grid Container (Fix overlap issue) ---
+            Panel pnlGridContainer = new Panel();
+            pnlGridContainer.Dock = DockStyle.Fill;
+            pnlGridContainer.Padding = new Padding(0, 5, 0, 0); // Slight gap
+            
             gridNodes = new DataGridView();
             gridNodes.Dock = DockStyle.Fill;
             gridNodes.BackgroundColor = Color.FromArgb(45, 45, 48);
@@ -80,6 +83,13 @@ namespace PiNodeMonitorWinForm
             gridNodes.Columns.Add("In", "In");
             gridNodes.Columns.Add("LastUpdate", "Updated");
             
+            // Remote View Button Column
+            DataGridViewButtonColumn btnRemote = new DataGridViewButtonColumn();
+            btnRemote.HeaderText = "Remote";
+            btnRemote.Text = "📺 View";
+            btnRemote.UseColumnTextForButtonValue = true;
+            gridNodes.Columns.Add(btnRemote);
+
             // Remove Button Column
             DataGridViewButtonColumn btnDel = new DataGridViewButtonColumn();
             btnDel.HeaderText = "Action";
@@ -89,8 +99,15 @@ namespace PiNodeMonitorWinForm
 
             gridNodes.CellClick += GridNodes_CellClick;
 
-            this.Controls.Add(gridNodes);
-
+            pnlGridContainer.Controls.Add(gridNodes); // Grid inside Container
+            this.Controls.Add(pnlGridContainer);      // Container inside Form
+            
+            // Correct Docking Order: 
+            // Control at the bottom of Z-order (SendToBack) is docked FIRST.
+            // We want Top panel to reserve space first, so send it to back.
+            pnlTop.SendToBack(); 
+            pnlGridContainer.BringToFront();
+            
             // --- Status Bar ---
             StatusStrip statusStrip = new StatusStrip();
             lblStatus = new Label { Text = "Ready", AutoSize = true, ForeColor = Color.Black }; 
@@ -125,8 +142,18 @@ namespace PiNodeMonitorWinForm
 
         private void GridNodes_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Handle Remove Button
-            if (e.RowIndex >= 0 && e.ColumnIndex == 7) // Remove Column
+            if (e.RowIndex < 0) return;
+
+            // Handle Remote View Button (Index 7)
+            if (e.ColumnIndex == 7) 
+            {
+                if (gridNodes.Rows[e.RowIndex].Tag is RemoteNodeConfig node)
+                {
+                    new RemoteViewForm(node.IpAddress, node.Pin, node.Alias).Show();
+                }
+            }
+            // Handle Remove Button (Index 8)
+            else if (e.ColumnIndex == 8) 
             {
                 _nodes.RemoveAt(e.RowIndex);
                 gridNodes.Rows.RemoveAt(e.RowIndex);
@@ -136,7 +163,8 @@ namespace PiNodeMonitorWinForm
 
         private void AddGridRow(RemoteNodeConfig node)
         {
-            int idx = gridNodes.Rows.Add(node.Alias, node.IpAddress, "Waiting...", "-", "-", "-", "-");
+            // Add row with placeholder values. Buttons (Remote, Remove) are auto-rendered.
+            int idx = gridNodes.Rows.Add(node.Alias, node.IpAddress, "Waiting...", "-", "-", "-", "-", null, null);
             gridNodes.Rows[idx].Tag = node; // Link row to object
         }
 
@@ -154,16 +182,24 @@ namespace PiNodeMonitorWinForm
             await Task.WhenAll(tasks);
         }
 
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            pollTimer.Stop();
+            base.OnFormClosing(e);
+        }
+
         private async Task CheckNodeStatus(RemoteNodeConfig node, DataGridViewRow row)
         {
             try
             {
-                string url = $"http://{node.IpAddress}/api/status?pin={node.Pin}";
-                // Ensure http:// prefix if missing
-                if (!node.IpAddress.StartsWith("http")) url = $"http://{node.IpAddress}/api/status?pin={node.Pin}";
+                string url = node.IpAddress.StartsWith("http") ? 
+                    $"{node.IpAddress}/api/status?pin={node.Pin}" : 
+                    $"http://{node.IpAddress}/api/status?pin={node.Pin}";
 
                 var response = await _httpClient.GetStringAsync(url);
                 var status = JsonSerializer.Deserialize<NodeStatusData>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (this.IsDisposed || !this.IsHandleCreated) return;
 
                 this.Invoke((MethodInvoker)delegate 
                 {
@@ -184,13 +220,13 @@ namespace PiNodeMonitorWinForm
                         {
                             row.DefaultCellStyle.BackColor = Color.LightPink;
                         }
-                        
-                        // Check Stall? (Optional logic here)
                     }
                 });
             }
             catch
             {
+                if (this.IsDisposed || !this.IsHandleCreated) return;
+                
                 this.Invoke((MethodInvoker)delegate 
                 {
                     row.Cells[2].Value = "Offline";

@@ -6,12 +6,23 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.Json;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace PiNodeMonitorWinForm
 {
     public class MobileServer
     {
+        // Win32 API for Mouse Control
+        [DllImport("user32.dll")]
+        static extern bool SetCursorPos(int X, int Y);
+        [DllImport("user32.dll")]
+        static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
+        
+        private const int MOUSEEVENTF_LEFTDOWN = 0x02;
+        private const int MOUSEEVENTF_LEFTUP = 0x04;
+
         private static WebApplication? _app;
         public static string CurrentIpAddress { get; private set; } = "127.0.0.1";
         public static string PublicIpAddress { get; private set; } = "Unknown";
@@ -53,6 +64,49 @@ namespace PiNodeMonitorWinForm
                     if (string.IsNullOrEmpty(pin) || pin != CurrentPin) return Results.Unauthorized();
 
                     return Results.Json(CurrentStatus);
+                });
+
+                // API: Screen Capture
+                _app.MapGet("/api/screen", (HttpContext context) =>
+                {
+                    string? pin = context.Request.Query["pin"];
+                    if (string.IsNullOrEmpty(pin) || pin != CurrentPin) return Results.Unauthorized();
+
+                    try
+                    {
+                        var bounds = Screen.PrimaryScreen.Bounds;
+                        using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height))
+                        {
+                             using (Graphics g = Graphics.FromImage(bmp))
+                             {
+                                 g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
+                             }
+                             using (var ms = new MemoryStream())
+                             {
+                                 bmp.Save(ms, ImageFormat.Jpeg);
+                                 return Results.File(ms.ToArray(), "image/jpeg");
+                             }
+                        }
+                    }
+                    catch { return Results.Problem("Capture Failed"); }
+                });
+
+                // API: Mouse Click
+                _app.MapGet("/api/click", (HttpContext context) => 
+                {
+                    string? pin = context.Request.Query["pin"];
+                    if (string.IsNullOrEmpty(pin) || pin != CurrentPin) return Results.Unauthorized();
+                    
+                    if (int.TryParse(context.Request.Query["x"], out int x) && 
+                        int.TryParse(context.Request.Query["y"], out int y))
+                    {
+                        // Scaling might be needed if resolution differs, but assuming 1:1 for now
+                        SetCursorPos(x, y);
+                        mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
+                        mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+                        return Results.Ok("Clicked");
+                    }
+                    return Results.BadRequest();
                 });
 
                 // Page: Main Dashboard (HTML with Login)
