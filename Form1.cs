@@ -37,6 +37,7 @@ namespace PiNodeMonitorWinForm
         private WalletService _walletService;
         private SmsService _smsService;
         private NodeMonitorService _monitorService;
+        private TelegramBotService _botService;
         private NotifyIcon notifyIcon;
         private decimal _lastBalance = -1; 
         
@@ -70,6 +71,8 @@ namespace PiNodeMonitorWinForm
             _walletService = new WalletService();
             _smsService = new SmsService();
             _monitorService = new NodeMonitorService();
+            _botService = new TelegramBotService();
+            InitializeBot();
 
             // ---------------------------------------------------------
             // Wallet UI Implementation (Clean Dashboard Mode)
@@ -113,6 +116,7 @@ namespace PiNodeMonitorWinForm
                 using (var frm = new SmsSettingsForm()) {
                     if (frm.ShowDialog() == DialogResult.OK) {
                         _smsService.LoadSettings();
+                        InitializeBot();
                     }
                 }
             };
@@ -595,6 +599,46 @@ namespace PiNodeMonitorWinForm
                  await RunDockerCommandAsync("start pi-consensus");
              }
              await UpdateDashboardAsync();
+        }
+
+        private void InitializeBot()
+        {
+            var conf = _smsService.GetConfig();
+            if (conf != null && conf.EnableTelegram && !string.IsNullOrEmpty(conf.TelegramBotToken))
+            {
+                _botService.OnStatusRequested -= Bot_OnStatusRequested; // Prevent Double Hook
+                _botService.OnRestartRequested -= Bot_OnRestartRequested;
+                
+                _botService.OnStatusRequested += Bot_OnStatusRequested;
+                _botService.OnRestartRequested += Bot_OnRestartRequested;
+                
+                _botService.Start(conf.TelegramBotToken, conf.TelegramChatId);
+            }
+            else
+            {
+                _botService.Stop();
+            }
+        }
+
+        private string Bot_OnStatusRequested()
+        {
+            return $"📊 **Node Status Report**\n\n" +
+                   $"🌍 **State**: {_statState}\n" +
+                   $"📦 **Block**: {_statLocalBlock}\n" +
+                   $"🔗 **Peers**: In {_statIn} / Out {_statOut}\n" +
+                   $"💰 **Balance**: {_lastBalance:N2} Pi\n" +
+                   $"⏳ **Uptime**: {lblUptime.Text.Replace("Uptime: ", "")}\n" +
+                   $"📅 **Time**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+        }
+
+        private void Bot_OnRestartRequested()
+        {
+            // Run in Task to avoid blocking bot thread
+            Task.Run(async () => 
+            {
+                await RunDockerCommandAsync("restart pi-consensus");
+                await UpdateDashboardAsync(); // Refresh Status
+            });
         }
         
         private void CheckWarnings(string state, int incoming) { }
