@@ -34,8 +34,32 @@ namespace PiNodeMonitorWinForm
             picScreen.MouseClick += PicScreen_MouseClick;
             this.Controls.Add(picScreen);
 
+            // --- Input Panel ---
+            Panel pnlBot = new Panel { Dock = DockStyle.Bottom, Height = 40, BackColor = Color.FromArgb(40, 40, 40) };
+            
+            TextBox txtInput = new TextBox { Location = new Point(10, 10), Width = 300 };
+            txtInput.KeyDown += async (s, e) => {
+                if (e.KeyCode == Keys.Enter) {
+                    await SendText(txtInput.Text);
+                    txtInput.Text = "";
+                    e.SuppressKeyPress = true; // Prevent beep
+                }
+            };
+            
+            Button btnSend = new Button { Text = "Send Text", Location = new Point(320, 8), Width = 100, BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnSend.Click += async (s, e) => {
+                await SendText(txtInput.Text);
+                txtInput.Text = "";
+            };
+
+            pnlBot.Controls.Add(txtInput);
+            pnlBot.Controls.Add(btnSend);
+            this.Controls.Add(pnlBot);
+            picScreen.BringToFront(); // Ensure PictureBox fills the rest
+
+
             refreshTimer = new System.Windows.Forms.Timer();
-            refreshTimer.Interval = 1000; // 1 FPS
+            refreshTimer.Interval = 200; // 5 FPS (Boosted by DXGI)
             refreshTimer.Tick += RefreshTimer_Tick;
             refreshTimer.Start();
             
@@ -117,6 +141,17 @@ namespace PiNodeMonitorWinForm
             try
             {
                 await _httpClient.GetAsync($"{_baseUrl}/api/click?pin={_pin}&x={serverX}&y={serverY}");
+            }
+            catch { }
+        }
+
+        private async Task SendText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            try
+            {
+                string safeText = Uri.EscapeDataString(text);
+                await _httpClient.GetAsync($"{_baseUrl}/api/type?pin={_pin}&text={safeText}");
             }
             catch { }
         }

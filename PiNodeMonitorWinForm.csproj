@@ -24,4 +24,10 @@
     <PackageReference Include="System.Text.Json" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="GurupiaCapture.Core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

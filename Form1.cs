@@ -574,7 +574,7 @@ namespace PiNodeMonitorWinForm
                 
                 // StatusStrip update
                  if (statusLabel != null)
-                    statusLabel.Text = $"Synced | Container: {NodeUtility.CurrentContainerName} | Last Update: {DateTime.Now:HH:mm:ss}";
+                    statusLabel.Text = $"Synced | Container: {NodeUtility.CurrentContainerName} | Engine: {MobileServer.LastCaptureMode} | Last Update: {DateTime.Now:HH:mm:ss}";
                  
                  // [New] Check Node Health for SMS Alerts
                  CheckNodeHealth();

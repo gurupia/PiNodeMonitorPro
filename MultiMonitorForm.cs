@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using PiNodeMonitorWinForm.Services.ExternalTools; // Added
 
 namespace PiNodeMonitorWinForm
 {
@@ -58,7 +59,14 @@ namespace PiNodeMonitorWinForm
             btnAdd.BackColor = Color.SteelBlue;
             btnAdd.FlatStyle = FlatStyle.Flat;
             btnAdd.Click += BtnAdd_Click;
-            pnlTop.Controls.AddRange(new Control[] { lbl1, txtAlias, lbl2, txtIp, lbl3, txtPin, btnAdd });
+
+            // Config Button
+            Button btnConfig = new Button { Text = "⚙️ Tools Config", Location = new Point(620, 16), Width = 120, Height = 28 };
+            btnConfig.BackColor = Color.FromArgb(64, 64, 64);
+            btnConfig.FlatStyle = FlatStyle.Flat;
+            btnConfig.Click += (s, e) => new ExternalToolsSettingsForm().ShowDialog();
+
+            pnlTop.Controls.AddRange(new Control[] { lbl1, txtAlias, lbl2, txtIp, lbl3, txtPin, btnAdd, btnConfig });
             this.Controls.Add(pnlTop);
 
             // --- Grid Container (Fix overlap issue) ---
@@ -73,6 +81,8 @@ namespace PiNodeMonitorWinForm
             gridNodes.AllowUserToAddRows = false;
             gridNodes.RowHeadersVisible = false;
             gridNodes.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            gridNodes.MultiSelect = false;
+            gridNodes.MouseDown += GridNodes_MouseDown; // Context Menu trigger
             gridNodes.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             
             gridNodes.Columns.Add("Alias", "Name");
@@ -258,6 +268,47 @@ namespace PiNodeMonitorWinForm
                 File.WriteAllText(CONFIG_FILE, json);
             }
             catch { }
+        }
+
+        private void GridNodes_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hti = gridNodes.HitTest(e.X, e.Y);
+                if (hti.RowIndex >= 0)
+                {
+                    // Select the row
+                    gridNodes.ClearSelection();
+                    gridNodes.Rows[hti.RowIndex].Selected = true;
+
+                    var node = gridNodes.Rows[hti.RowIndex].Tag as RemoteNodeConfig;
+                    if (node == null) return;
+
+                    // Build Context Menu
+                    ContextMenuStrip mnu = new ContextMenuStrip();
+                    mnu.Items.Add(new ToolStripMenuItem("Remote Control Options") { Enabled = false, BackColor = Color.LightGray });
+                    mnu.Items.Add(new ToolStripSeparator());
+
+                    // 1. Internal Viewer
+                    var itemInternal = new ToolStripMenuItem("📺 View Screen (Internal)");
+                    itemInternal.Click += (s, ev) => new RemoteViewForm(node.IpAddress, node.Pin, node.Alias).Show();
+                    mnu.Items.Add(itemInternal);
+
+                    // 2. External Tools
+                    var svc = new ExternalToolService();
+                    var tools = svc.GetTools();
+                    if (tools.Count > 0) mnu.Items.Add(new ToolStripSeparator());
+
+                    foreach (var tool in tools)
+                    {
+                        var item = new ToolStripMenuItem($"🚀 Open with {tool.Name}");
+                        item.Click += (s, ev) => svc.LaunchTool(tool, node.IpAddress);
+                        mnu.Items.Add(item);
+                    }
+
+                    mnu.Show(gridNodes, new Point(e.X, e.Y));
+                }
+            }
         }
     }
 
