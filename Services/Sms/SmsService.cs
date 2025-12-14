@@ -1,15 +1,18 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace PiNodeMonitorWinForm.Services.Sms
 {
     public class SmsService
     {
         private ISmsProvider _provider;
-        private string _targetPhone;
+        private SmsConfigModel _config;
+        private const string CONFIG_FILE = "sms_config.json";
 
-        public bool IsEnabled => _provider != null && !string.IsNullOrEmpty(_targetPhone);
+        public bool IsEnabled => _provider != null && !string.IsNullOrEmpty(_config?.TargetPhone);
+        public bool IsNodeAlertEnabled => _config?.IsNodeAlertEnabled ?? false;
 
         public SmsService()
         {
@@ -18,43 +21,124 @@ namespace PiNodeMonitorWinForm.Services.Sms
 
         public void LoadSettings()
         {
-            // Simple File-based Config for now (sms_config.txt)
-            // Format: ProviderType|ApiKey|ApiSecret|SenderPhone|TargetPhone
-            // Example: COOL|key|secret|01012345678|01099998888
             try
             {
-                if (File.Exists("sms_config.txt"))
+                if (File.Exists(CONFIG_FILE))
                 {
-                    var line = File.ReadAllText("sms_config.txt").Trim();
-                    var parts = line.Split('|');
-                    if (parts.Length >= 5)
-                    {
-                        string type = parts[0].ToUpper();
-                        string k1 = parts[1];
-                        string k2 = parts[2];
-                        string sender = parts[3];
-                        _targetPhone = parts[4];
+                    string json = File.ReadAllText(CONFIG_FILE);
+                    _config = JsonSerializer.Deserialize<SmsConfigModel>(json);
+                }
+                else if (File.Exists("sms_config.txt")) // Migration Support
+                {
+                    MigrateLegacyConfig();
+                }
 
-                        if (type == "COOL")
-                        {
-                            _provider = new CoolSmsProvider(k1, k2, sender);
-                        }
-                        else if (type == "TWILIO")
-                        {
-                            _provider = new TwilioProvider(k1, k2, sender);
-                        }
-                    }
+                if (_config == null) _config = new SmsConfigModel();
+
+                // Setup Provider
+                if (_config.SelectedProvider == "SOLAPI")
+                {
+                    if (!string.IsNullOrEmpty(_config.Solapi.Key1))
+                        _provider = new SolapiSmsProvider(_config.Solapi.Key1, _config.Solapi.Key2, _config.Solapi.SenderPhone);
+                }
+                else if (_config.SelectedProvider == "TWILIO")
+                {
+                     if (!string.IsNullOrEmpty(_config.Twilio.Key1))
+                        _provider = new TwilioProvider(_config.Twilio.Key1, _config.Twilio.Key2, _config.Twilio.SenderPhone);
                 }
             }
-            catch { _provider = null; }
+            catch 
+            { 
+                _config = new SmsConfigModel();
+                _provider = null; 
+            }
+        }
+
+        private void MigrateLegacyConfig()
+        {
+            try
+            {
+                var line = File.ReadAllText("sms_config.txt").Trim();
+                var parts = line.Split('|');
+                if (parts.Length >= 5)
+                {
+                    _config = new SmsConfigModel();
+                    _config.SelectedProvider = parts[0].ToUpper() == "COOL" ? "SOLAPI" : parts[0].ToUpper();
+                    
+                    var keys = new ProviderConfig 
+                    { 
+                        Key1 = parts[1], 
+                        Key2 = parts[2], 
+                        SenderPhone = parts[3] 
+                    };
+                    
+                    if (_config.SelectedProvider == "SOLAPI") _config.Solapi = keys;
+                    else _config.Twilio = keys;
+
+                    _config.TargetPhone = parts[4];
+                    if (parts.Length >= 6) _config.Template = parts[5];
+                    if (parts.Length >= 7) _config.IsNodeAlertEnabled = bool.Parse(parts[6]);
+
+                    // Save new format immediately
+                    SaveSettings(_config);
+                }
+            }
+            catch { }
+        }
+
+        public static void SaveSettings(SmsConfigModel config)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(config, options);
+                File.WriteAllText(CONFIG_FILE, json);
+            }
+            catch { }
+        }
+
+        public SmsConfigModel GetConfig() => _config;
+
+        public async Task SendAlertAsync(decimal amount, decimal balance)
+        {
+            string msg = _config.Template;
+            if (string.IsNullOrWhiteSpace(msg)) 
+                msg = $"[PiNode] Deposit! +{amount:0.#####} Pi. Total: {balance:N2} Pi";
+            else
+                msg = msg.Replace("{amount}", amount.ToString("0.#####")).Replace("{total}", balance.ToString("N2"));
+
+            // 1. SMS
+            if (IsEnabled)
+            {
+                try { await _provider.SendSmsAsync(_config.TargetPhone, msg); } catch { }
+            }
+            
+            // 2. Telegram
+            await SendTelegramAsync(msg);
         }
 
         public async Task SendAlertAsync(string message)
         {
-            if (!IsEnabled) return;
+             // 1. SMS
+             if (IsEnabled)
+             {
+                 try { await _provider.SendSmsAsync(_config.TargetPhone, message); } catch { }
+             }
+
+             // 2. Telegram
+             await SendTelegramAsync(message);
+        }
+
+        private async Task SendTelegramAsync(string message)
+        {
+            if (!_config.EnableTelegram || string.IsNullOrEmpty(_config.TelegramBotToken) || string.IsNullOrEmpty(_config.TelegramChatId))
+                return;
+
             try
             {
-                await _provider.SendSmsAsync(_targetPhone, message);
+                using var client = new System.Net.Http.HttpClient();
+                string url = $"https://api.telegram.org/bot{_config.TelegramBotToken}/sendMessage?chat_id={_config.TelegramChatId}&text={System.Uri.EscapeDataString(message)}";
+                await client.GetAsync(url);
             }
             catch { }
         }

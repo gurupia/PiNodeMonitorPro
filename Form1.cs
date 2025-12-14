@@ -36,6 +36,7 @@ namespace PiNodeMonitorWinForm
         private Button btnChangeWallet;
         private WalletService _walletService;
         private SmsService _smsService;
+        private NodeMonitorService _monitorService;
         private NotifyIcon notifyIcon;
         private decimal _lastBalance = -1; 
         
@@ -43,6 +44,7 @@ namespace PiNodeMonitorWinForm
         {
             InitializeComponent();
             this.Height += 120; // Increased height for Wallet UI + Footer
+            this.Width += 60;   // Increased width for SMS Button
             this.Text = "Pi Node Monitor Pro (Fixed v2)";
             
             try 
@@ -67,6 +69,7 @@ namespace PiNodeMonitorWinForm
             // Service Init
             _walletService = new WalletService();
             _smsService = new SmsService();
+            _monitorService = new NodeMonitorService();
 
             // ---------------------------------------------------------
             // Wallet UI Implementation (Clean Dashboard Mode)
@@ -285,7 +288,7 @@ namespace PiNodeMonitorWinForm
                     _walletService.LogDeposit(diff, dBal);
 
                     // SMS Alert
-                    _ = _smsService.SendAlertAsync($"[PiNode] Deposit! +{diff:0.##} Pi. Total: {dBal:0.##}");
+                    _ = _smsService.SendAlertAsync(diff, dBal);
                     
                     if (notifyIcon != null)
                         notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
@@ -555,12 +558,27 @@ namespace PiNodeMonitorWinForm
                 // StatusStrip update
                  if (statusLabel != null)
                     statusLabel.Text = $"Synced | Container: {NodeUtility.CurrentContainerName} | Last Update: {DateTime.Now:HH:mm:ss}";
-
+                 
+                 // [New] Check Node Health for SMS Alerts
+                 CheckNodeHealth();
             }
             catch (Exception ex)
             {
                  // Ignore UI update errors
                  System.Diagnostics.Debug.WriteLine(ex.ToString());
+            }
+        }
+
+        private void CheckNodeHealth()
+        {
+            if (_statLocalBlock == "0" || _statLocalBlock == "1") return;
+
+            string alertMsg = _monitorService.CheckNodeStatus(_statLocalBlock, _statState);
+            if (alertMsg != null)
+            {
+                // Only send if enabled in Settings
+                if (_smsService.IsNodeAlertEnabled)
+                     _ = _smsService.SendAlertAsync(alertMsg);
             }
         }
 

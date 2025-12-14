@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>텔레그램 무료 알림 설정 가이드 - Pi Node Monitor Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Apple SD Gothic Neo', system-ui, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f8;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+        }
+        .step-icon {
+            background: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .highlight {
+            background-color: #e8f4fd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #2980b9;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .tip-box {
+            background-color: #fff8e1;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .code-block {
+            background: #2d3436;
+            color: #dfe6e9;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: Consolas, monospace;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        ol li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📨 텔레그램 무료 알림 설정 가이드</h1>
+    <p>
+        <strong>Pi Node Monitor Pro</strong>는 텔레그램 봇(Bot) 기능을 이용해 <strong style="color: #e74c3c;">평생 무료</strong>로 상태 알림 메시지를 보내드립니다.<br>
+        아래의 3단계만 따라 하시면 입금 내역과 노드 장애 알림을 스마트폰으로 즉시 받아보실 수 있습니다.
+    </p>
+
+    <!-- STEP 1 -->
+    <h2><span class="step-icon">1</span>나만의 봇 만들기 (Bot Token)</h2>
+    <p>텔레그램에서 나에게 메시지를 보내줄 로봇을 만드는 과정입니다.</p>
+    <ol>
+        <li>텔레그램 앱을 실행하고 검색창에 <span class="highlight">@BotFather</span>를 검색합니다. (파란색 인증 마크 확인)</li>
+        <li>대화방에 들어가서 <span class="highlight">/newbot</span> 이라고 입력하고 전송합니다.</li>
+        <li>봇의 <strong>이름</strong>을 지어달라고 합니다. 아무거나 입력하세요. (예: <span class="highlight">MyPiNodeAlert</span>)</li>
+        <li>봇의 <strong>아이디(Username)</strong>를 지어달라고 합니다. <strong>반드시 끝이 bot으로 끝나야 합니다.</strong> (예: <span class="highlight">gurupia_pi_bot</span>)</li>
+        <li>성공하면 긴 <strong>HTTP API Token</strong>이 발급됩니다. 이 값을 복사해 두세요.</li>
+    </ol>
+    <div class="code-block">
+        Use this token to access the HTTP API:<br>
+        123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+    </div>
+
+    <!-- STEP 2 -->
+    <h2><span class="step-icon">2</span>내 채팅방 ID 알아내기 (Chat ID)</h2>
+    <p>봇이 메시지를 보낼 "목적지(내 채팅방)" 주소를 알아내는 과정입니다.</p>
+    
+    <div class="tip-box">
+        <strong>💡 가장 쉬운 방법 (추천)</strong><br>
+        1. 텔레그램 검색창에 <span class="highlight">@userinfobot</span>을 검색하세요.<br>
+        2. 대화방에 들어가서 아무 메시지나 보내세요.<br>
+        3. 답장으로 오는 <strong>Id: 12345678</strong> 부분의 숫자가 내 Chat ID입니다.
+    </div>
+
+    <!-- STEP 3 -->
+    <h2><span class="step-icon">3</span>프로그램에 입력하기</h2>
+    <ol>
+        <li><strong>Pi Node Monitor Pro</strong> 프로그램의 <strong>설정(Settings)</strong> 버튼을 누릅니다.</li>
+        <li>상단의 <strong>[Telegram (Free)]</strong> 탭을 클릭합니다.</li>
+        <li><strong>Enable Telegram Notifications</strong> 체크박스를 켭니다.</li>
+        <li><strong>Bot Token</strong> 칸에 1단계에서 받은 값을 붙여넣습니다.</li>
+        <li><strong>Chat ID</strong> 칸에 2단계에서 받은 숫자를 붙여넣습니다.</li>
+        <li><strong>[📨 Test]</strong> 버튼을 눌러 내 폰으로 메시지가 오는지 확인합니다.</li>
+        <li>메시지가 잘 오면 <strong>[💾 Save All]</strong> 버튼을 눌러 저장합니다.</li>
+    </ol>
+
+    <div class="footer">
+        <p>🎉 이제 PC가 켜져 있는 한 24시간 입금 및 노드 상태를 감시해 드립니다.</p>
+        &copy; 2024 Pi Node Monitor Pro. All rights reserved.
+    </div>
+</div>
+
+</body>
+</html>

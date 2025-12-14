@@ -1,20 +1,20 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace PiNodeMonitorWinForm.Services.Sms
 {
-    public class CoolSmsProvider : ISmsProvider
+    public class SolapiSmsProvider : ISmsProvider
     {
         private readonly string _apiKey;
         private readonly string _apiSecret;
-        private readonly string _senderPhone; // 발신번호 (사전 등록 필수)
+        private readonly string _senderPhone;
 
-        public CoolSmsProvider(string apiKey, string apiSecret, string senderPhone)
+        public SolapiSmsProvider(string apiKey, string apiSecret, string senderPhone)
         {
             _apiKey = apiKey;
             _apiSecret = apiSecret;
@@ -43,9 +43,9 @@ namespace PiNodeMonitorWinForm.Services.Sms
 
             using (var client = new HttpClient())
             {
-                // CoolSMS API v4
-                string url = $"https://api.coolsms.co.kr/messages/v4/send";
-                client.DefaultRequestHeaders.Add("Authorization", $"HMAC-SHA256 apiKey={_apiKey}, date={date}, salt={salt}, signature={signature}");
+                // Solapi API v4
+                string url = $"https://api.solapi.com/messages/v4/send";
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("HMAC-SHA256", $"apiKey={_apiKey}, date={date}, salt={salt}, signature={signature}");
 
                 var content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync(url, content);
