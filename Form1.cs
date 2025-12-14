@@ -20,7 +20,6 @@ namespace PiNodeMonitorWinForm
         private int _statOut = 0;
         private string _statLocalBlock = "0";
         private int _statLedgerAge = 0;
-        private int _lastIncomingCount = -1;
         private bool _wasSynced = false;
         private int _totalSeconds = 0;
         private int _totalSyncedSeconds = 0;
@@ -158,6 +157,20 @@ namespace PiNodeMonitorWinForm
             } else {
                 ToggleWalletEdit(true); 
             }
+            // ---------------------------------------------------------
+            // Multi-Monitor Button
+            // ---------------------------------------------------------
+            Button btnMulti = new Button();
+            btnMulti.Text = "🖥️ Multi-View";
+            btnMulti.Size = new Size(140, 40);
+            btnMulti.Location = new Point(this.ClientSize.Width - 305, this.ClientSize.Height - 100); 
+            btnMulti.BackColor = Color.Teal;
+            btnMulti.ForeColor = Color.White;
+            btnMulti.FlatStyle = FlatStyle.Flat;
+            btnMulti.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            btnMulti.Click += (s, e) => { new MultiMonitorForm().Show(); };
+            this.Controls.Add(btnMulti);
+
             // ---------------------------------------------------------
             // Mobile Connect Button
             // ---------------------------------------------------------
