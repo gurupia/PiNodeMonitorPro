@@ -15,6 +15,12 @@ namespace PiNodeMonitorWinForm
             Application.SetCompatibleTextRenderingDefault(false);
 
             // --- Smart Pre-flight Check ---
+            // 0. Check Windows Environment (WSL2, Platform, etc.)
+            bool vmp = NodeUtility.IsWindowsFeatureEnabledAsync("VirtualMachinePlatform").GetAwaiter().GetResult();
+            bool wsl = NodeUtility.IsWindowsFeatureEnabledAsync("Microsoft-Windows-Subsystem-Linux").GetAwaiter().GetResult();
+            bool wslInstalled = NodeUtility.IsWslInstalledAsync().GetAwaiter().GetResult();
+            bool checkEnvironment = vmp && wsl && wslInstalled;
+
             // 1. Check Docker
             bool checkDocker = NodeUtility.IsDockerRunningAsync().GetAwaiter().GetResult();
             
@@ -39,7 +45,7 @@ namespace PiNodeMonitorWinForm
             bool checkFirewall = NodeUtility.IsFirewallRulePresentAsync().GetAwaiter().GetResult();
 
             // Logic: If anything is missing, Show Wizard
-            if (!checkDocker || !checkContainer || !checkFirewall)
+            if (!checkEnvironment || !checkDocker || !checkContainer || !checkFirewall)
             {
                 using (var wizard = new SetupWizardForm())
                 {

@@ -277,6 +277,72 @@ namespace PiNodeMonitorWinForm
             catch { }
         }
 
+        public static async Task<bool> IsWindowsFeatureEnabledAsync(string featureName)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("powershell", $"-Command \"(Get-WindowsOptionalFeature -Online -FeatureName {featureName}).State\"")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var p = Process.Start(psi))
+                {
+                    if (p != null)
+                    {
+                        string output = p.StandardOutput.ReadToEnd();
+                        await Task.Run(() => p.WaitForExit());
+                        return output.Trim().Equals("Enabled", StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public static async Task EnableWindowsFeaturesAsync()
+        {
+            // Enable VirtualMachinePlatform and Microsoft-Windows-Subsystem-Linux
+            string script = "Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart; " +
+                            "Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart";
+            await RunCommandAsync("powershell", $"-Command \"{script}\"", true);
+        }
+
+        public static async Task<bool> IsWslInstalledAsync()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("wsl", "--status")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var p = Process.Start(psi))
+                {
+                    if (p != null)
+                    {
+                        await Task.Run(() => p.WaitForExit());
+                        return p.ExitCode == 0;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public static async Task UpdateWslAsync()
+        {
+            await RunCommandAsync("wsl", "--update", true);
+        }
+
+        public static void RebootSystem()
+        {
+            Process.Start("shutdown", "/r /t 5");
+        }
+
         public static void ActivateProcess(string processName)
         {
             try

@@ -18,8 +18,8 @@
 *   **Session Statistics**: 현재까지의 가용성(Availability)과 업타임(Uptime)을 보여줍니다.
 *   **Node Bonus**: 💎 **실시간 보너스 점수**를 표시합니다. 1분마다 자동 갱신됩니다.
 *   **Docker & Pi Node Management**: 상단 메뉴를 통해 도커와 파이 노드를 정밀 제어할 수 있습니다.
-    - **Docker**: 대시보드 열기, 창 제어(Show/Hide), 서비스 재시작, 실시간 로그 확인 등.
-    - **Pi Node**: 앱 창 제어, **데이터 초기화(Fresh Sync)**, 쿼럼 상태 확인, UUID 조회 등.
+    - **Docker**: **앱 실행(Start)**, 대시보드 열기, 창 제어(Show/Hide), 서비스 재시작, 실시간 로그 확인 등.
+    - **Pi Node**: **앱 실행(Start)**, 창 제어(Show/Hide), **데이터 초기화(Fresh Sync)**, 쿼럼 상태 확인, UUID 조회 등.
 *   **[History] 버튼**: 클릭 시 지금까지 기록된 보너스 점수의 변화를 표 형식으로 한눈에 볼 수 있습니다.
 
 ---

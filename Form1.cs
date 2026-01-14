@@ -114,6 +114,10 @@ namespace PiNodeMonitorWinForm
             menuDashboard.DropDownItems.Add("-");
             menuDashboard.DropDownItems.Add("Reset Uptime Stats", null, (s, e) => { _totalSeconds = 0; _totalSyncedSeconds = 0; });
             menuDashboard.DropDownItems.Add("Reset Wallet Balance", null, (s, e) => { _lastBalance = -1; UpdateWalletBalanceAsync(); });
+            menuDashboard.DropDownItems.Add("-");
+            menuDashboard.DropDownItems.Add("환경 설정 마법사 (Setup)", null, (s, e) => { 
+                using (var wizard = new SetupWizardForm()) { wizard.ShowDialog(); } 
+            });
 
             menuStrip.Items.Add(menuDocker);
             menuStrip.Items.Add(menuPiNode);

@@ -13,6 +13,7 @@ namespace PiNodeMonitorWinForm
         private Label lblStatus;
         private Label lblInstruction;
         private Button btnAction;
+        private Button btnReboot;
         private Button btnNext;
         private Button btnManual;
         private Button btnSkip;
@@ -51,7 +52,7 @@ namespace PiNodeMonitorWinForm
             // Progress
             progressBar.Location = new Point(20, 70);
             progressBar.Size = new Size(460, 10);
-            progressBar.Maximum = 4;
+            progressBar.Maximum = 5;
             progressBar.Value = 1;
 
             // Status
@@ -97,11 +98,21 @@ namespace PiNodeMonitorWinForm
             this.btnSkip.Visible = false;
             this.btnSkip.Click += BtnSkip_Click;
 
+            // Reboot Button
+            this.btnReboot = new Button();
+            this.btnReboot.Location = new Point(180, 260);
+            this.btnReboot.Size = new Size(140, 40);
+            this.btnReboot.Text = "Reboot System";
+            this.btnReboot.BackColor = Color.Salmon;
+            this.btnReboot.Visible = false;
+            this.btnReboot.Click += (s, e) => { if (MessageBox.Show("시스템을 지금 다시 시작하시겠습니까?", "Reboot", MessageBoxButtons.YesNo) == DialogResult.Yes) NodeUtility.RebootSystem(); };
+
             this.Controls.Add(lblTitle);
             this.Controls.Add(progressBar);
             this.Controls.Add(lblStatus);
             this.Controls.Add(lblInstruction);
             this.Controls.Add(btnAction);
+            this.Controls.Add(btnReboot);
             this.Controls.Add(btnManual);
             this.Controls.Add(btnSkip);
             this.Controls.Add(btnNext);
@@ -114,25 +125,47 @@ namespace PiNodeMonitorWinForm
             _currentStep = step;
             progressBar.Value = step;
             btnNext.Enabled = false;
-            progressBar.Value = step;
-            btnNext.Enabled = false;
             btnAction.Visible = false;
             btnManual.Visible = false;
             btnSkip.Visible = false;
+            btnReboot.Visible = false;
             lblStatus.ForeColor = Color.Gray;
 
             switch (step)
             {
                 case 1:
-                    lblTitle.Text = "Step 1: Check Docker";
+                    lblTitle.Text = "Step 1: Windows Environment";
+                    lblStatus.Text = "Checking Windows Features...";
+                    lblInstruction.Text = "Checking if 'Virtual Machine Platform' and 'WSL' features are enabled.\nThese are necessary for Docker and Pi Node.";
+                    
+                    bool vmp = await NodeUtility.IsWindowsFeatureEnabledAsync("VirtualMachinePlatform");
+                    bool wsl = await NodeUtility.IsWindowsFeatureEnabledAsync("Microsoft-Windows-Subsystem-Linux");
+                    bool wslInstalled = await NodeUtility.IsWslInstalledAsync();
+
+                    if (!vmp || !wsl)
+                    {
+                        UpdateStepUI(false, "Features Missing", "Virtual Machine Platform or WSL is not enabled.", "Enable Features");
+                    }
+                    else if (!wslInstalled)
+                    {
+                         UpdateStepUI(false, "WSL Update Needed", "WSL is enabled but needs update/install.", "Update WSL2");
+                    }
+                    else
+                    {
+                        UpdateStepUI(true, "Environment Ready!", "Windows features are configured correctly.", "");
+                    }
+                    break;
+
+                case 2:
+                    lblTitle.Text = "Step 2: Check Docker";
                     lblStatus.Text = "Checking Docker...";
                     lblInstruction.Text = "Checking if Docker Desktop is installed and running.\nThis is required to run the Pi Node.";
                     bool dockerOk = await NodeUtility.IsDockerRunningAsync();
                     UpdateStepUI(dockerOk, "Docker is Running!", "Docker is NOT running or not installed.", "Download Docker");
                     break;
 
-                case 2:
-                    lblTitle.Text = "Step 2: Check Node Container";
+                case 3:
+                    lblTitle.Text = "Step 3: Check Node Container";
                     lblStatus.Text = "Checking Container...";
                     lblInstruction.Text = "Checking if 'pi-consensus' or 'testnet2' container exists.\nThis is created automatically when you turn on the Node switch in the Pi App.";
                     
@@ -145,14 +178,14 @@ namespace PiNodeMonitorWinForm
                     UpdateStepUI(containerOk, "Node Container Found!", "Container missing.", "Open Guide/App");
                     break;
 
-                case 3:
-                    lblTitle.Text = "Step 3: Check Firewall";
+                case 4:
+                    lblTitle.Text = "Step 4: Check Firewall";
                     lblStatus.Text = "Checking Firewall...";
                     lblInstruction.Text = "Checking if TCP ports 31401-31403 are open.\nThese allow other nodes to connect to you.";
                     bool firewallOk = await NodeUtility.IsFirewallRulePresentAsync();
                     UpdateStepUI(firewallOk, "Firewall Configured!", "Ports may be blocked.", "Open Firewall Settings");
                     
-                    // Allow Skip on Step 3
+                    // Allow Skip on Step 4
                     if (!firewallOk)
                     {
                         btnNext.Text = "Skip & Continue";
@@ -160,7 +193,7 @@ namespace PiNodeMonitorWinForm
                     }
                     break;
 
-                case 4:
+                case 5:
                     // All Done
                     this.DialogResult = DialogResult.OK; // Launch Dashboard
                     this.Close();
@@ -197,13 +230,19 @@ namespace PiNodeMonitorWinForm
             btnNext.Enabled = false;
             bool ok = false;
 
-            if (_currentStep == 1) ok = await NodeUtility.IsDockerRunningAsync();
-            else if (_currentStep == 2) 
+            if (_currentStep == 1)
+            {
+                bool vmp = await NodeUtility.IsWindowsFeatureEnabledAsync("VirtualMachinePlatform");
+                bool wsl = await NodeUtility.IsWindowsFeatureEnabledAsync("Microsoft-Windows-Subsystem-Linux");
+                ok = vmp && wsl && await NodeUtility.IsWslInstalledAsync();
+            }
+            else if (_currentStep == 2) ok = await NodeUtility.IsDockerRunningAsync();
+            else if (_currentStep == 3) 
             {
                 ok = await NodeUtility.IsContainerExistAsync("pi-consensus");
                 if (!ok) ok = await NodeUtility.IsContainerExistAsync("testnet2");
             }
-            else if (_currentStep == 3)
+            else if (_currentStep == 4)
             {
                 // Allow skip
                 if (btnNext.Text.Contains("Skip"))
@@ -245,17 +284,34 @@ namespace PiNodeMonitorWinForm
             {
                 if (_currentStep == 1)
                 {
+                    if (btnAction.Text.Contains("Features"))
+                    {
+                        lblInstruction.Text = "Enabling Windows Features. This may take a minute...\nPlease wait.";
+                        await NodeUtility.EnableWindowsFeaturesAsync();
+                        lblInstruction.Text = "Features enabled! YOU MUST REBOOT YOUR COMPUTER.\nPlease click 'Reboot System' below.";
+                        btnAction.Visible = false;
+                        btnReboot.Visible = true;
+                    }
+                    else if (btnAction.Text.Contains("Update"))
+                    {
+                        lblInstruction.Text = "Updating WSL2. This may pop up a console window...\nPlease wait.";
+                        await NodeUtility.UpdateWslAsync();
+                        lblInstruction.Text = "WSL2 Update completed. Click 'Check Again' to proceed.";
+                    }
+                }
+                else if (_currentStep == 2)
+                {
                     // Open Docker Download Page
                     Process.Start(new ProcessStartInfo { FileName = "https://www.docker.com/products/docker-desktop", UseShellExecute = true });
                     lblInstruction.Text = "Opened Docker website. Please install Docker Desktop and START it.\nThen click 'Check Again'.";
                 }
-                else if (_currentStep == 2)
+                else if (_currentStep == 3)
                 {
                     // Open Guide
                     Process.Start(new ProcessStartInfo { FileName = "https://minepi.com/node-info", UseShellExecute = true });
                     lblInstruction.Text = "Please run the Pi Node App and turn on the switch.\nThis will create the Node container.\nThen click 'Check Again'.";
                 }
-                else if (_currentStep == 3)
+                else if (_currentStep == 4)
                 {
                     // Open Windows Firewall Settings
                     Process.Start(new ProcessStartInfo { FileName = "control", Arguments = "firewall.cpl", UseShellExecute = true });
@@ -283,7 +339,7 @@ namespace PiNodeMonitorWinForm
                 {
                     NodeUtility.CurrentContainerName = input;
                     MessageBox.Show($"Found container '{input}'!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadStep(3); // Success, go to next step directly
+                    LoadStep(4); // Success, go to next step directly (Firewall)
                 }
                 else
                 {
