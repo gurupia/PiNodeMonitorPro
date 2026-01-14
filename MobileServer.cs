@@ -357,18 +357,62 @@ namespace PiNodeMonitorWinForm
             var list = new System.Collections.Generic.List<string>();
             try 
             {
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-                foreach (var ip in host.AddressList)
+                // Strict validation: Only Operational Interfaces with Gateways
+                var interfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+                foreach (var ni in interfaces)
                 {
-                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    // 1. Must be Up
+                    if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                    
+                    // 2. Must not be Loopback
+                    if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+
+                    // 3. Must have a Gateway (excludes purely internal virtual switches)
+                    var props = ni.GetIPProperties();
+                    if (props.GatewayAddresses.Count == 0) continue;
+
+                    // 4. Get Unicast Addresses match
+                    foreach (var ip in props.UnicastAddresses)
                     {
-                        string s = ip.ToString();
-                        if (s != "127.0.0.1") list.Add(s);
+                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            string s = ip.Address.ToString();
+                            if (!s.StartsWith("169.254")) // Exclude APIPA (Link-Local)
+                            {
+                                list.Add(s);
+                            }
+                        }
                     }
                 }
+
+                // Sort: 192.168 -> 10 -> Others
+                list.Sort((a, b) => {
+                    int scoreA = GetIpScore(a);
+                    int scoreB = GetIpScore(b);
+                    return scoreB.CompareTo(scoreA);
+                });
             } catch { }
+            
+            // Fallback if strict check fails (e.g. some VPN layouts)
+            if (list.Count == 0)
+            {
+               try {
+                  var host = Dns.GetHostEntry(Dns.GetHostName());
+                  foreach (var ip in host.AddressList)
+                      if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) list.Add(ip.ToString());
+               } catch {}
+            }
+
             if (list.Count == 0) list.Add("127.0.0.1");
             return list;
+        }
+
+        private static int GetIpScore(string ip)
+        {
+            if (ip.StartsWith("192.168.")) return 100;
+            if (ip.StartsWith("10.")) return 90;
+            if (ip.StartsWith("172.")) return 10;
+            return 50;
         }
 
         private static async Task DetectPublicIpAsync()
