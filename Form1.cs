@@ -67,6 +67,11 @@ namespace PiNodeMonitorWinForm
             ToolStripMenuItem menuDocker = new ToolStripMenuItem("Docker");
             menuDocker.DropDownItems.Add("도커 실행 (Start)", null, (s, e) => { 
                 try { 
+                    string customPath = NodeUtility.Config.CustomDockerPath;
+                    if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath)) {
+                        Process.Start(customPath);
+                        return;
+                    }
                     string dockerPath = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
                     if (File.Exists(dockerPath)) Process.Start(dockerPath);
                     else Process.Start("docker-desktop://"); 
@@ -94,6 +99,11 @@ namespace PiNodeMonitorWinForm
             
             menuPiNode.DropDownItems.Add("노드 앱 실행 (Start)", null, (s, e) => { 
                 try { 
+                    string customPath = NodeUtility.Config.CustomPiAppPath;
+                    if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath)) {
+                        Process.Start(customPath);
+                        return;
+                    }
                     if (File.Exists(repoAppPath)) Process.Start(repoAppPath);
                     else if (File.Exists(localProgramsDesktopPath)) Process.Start(localProgramsDesktopPath);
                     else if (File.Exists(localProgramsPath)) Process.Start(localProgramsPath);
@@ -134,6 +144,7 @@ namespace PiNodeMonitorWinForm
             menuDashboard.DropDownItems.Add("환경 설정 마법사 (Setup)", null, (s, e) => { 
                 using (var wizard = new SetupWizardForm()) { wizard.ShowDialog(); } 
             });
+            menuDashboard.DropDownItems.Add("앱 경로 수동 설정", null, (s, e) => { ShowPathSettingsDialog(); });
 
             menuStrip.Items.Add(menuDocker);
             menuStrip.Items.Add(menuPiNode);
@@ -937,6 +948,51 @@ namespace PiNodeMonitorWinForm
             }
             catch { }
             return 0;
+        }
+        private void ShowPathSettingsDialog()
+        {
+            Form settingsForm = new Form()
+            {
+                Width = 600,
+                Height = 350,
+                Text = "앱 경로 수동 설정 (Path Settings)",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false
+            };
+
+            Label lblDocker = new Label() { Text = "Docker Desktop 경로:", Top = 20, Left = 20, Width = 540 };
+            TextBox txtDocker = new TextBox() { Top = 45, Left = 20, Width = 440, Text = NodeUtility.Config.CustomDockerPath };
+            Button btnDocker = new Button() { Text = "찾기...", Top = 43, Left = 470, Width = 90 };
+
+            Label lblPi = new Label() { Text = "Pi Network 앱 경로:", Top = 100, Left = 20, Width = 540 };
+            TextBox txtPi = new TextBox() { Top = 125, Left = 20, Width = 440, Text = NodeUtility.Config.CustomPiAppPath };
+            Button btnPi = new Button() { Text = "찾기...", Top = 123, Left = 470, Width = 90 };
+
+            Button btnSave = new Button() { Text = "저장 및 적용 (Save)", Top = 200, Left = 20, Width = 540, Height = 40, Font = new Font(this.Font, FontStyle.Bold) };
+
+            btnDocker.Click += (s, e) => {
+                using (OpenFileDialog ofd = new OpenFileDialog() { Filter = "Executable Files|*.exe", Title = "Docker Desktop 실행 파일 선택" }) {
+                    if (ofd.ShowDialog() == DialogResult.OK) txtDocker.Text = ofd.FileName;
+                }
+            };
+
+            btnPi.Click += (s, e) => {
+                using (OpenFileDialog ofd = new OpenFileDialog() { Filter = "Executable Files|*.exe", Title = "Pi Network 실행 파일 선택" }) {
+                    if (ofd.ShowDialog() == DialogResult.OK) txtPi.Text = ofd.FileName;
+                }
+            };
+
+            btnSave.Click += (s, e) => {
+                NodeUtility.Config.CustomDockerPath = txtDocker.Text.Trim();
+                NodeUtility.Config.CustomPiAppPath = txtPi.Text.Trim();
+                NodeUtility.SaveConfig();
+                MessageBox.Show("설정이 저장되었습니다.", "알림");
+                settingsForm.Close();
+            };
+
+            settingsForm.Controls.AddRange(new Control[] { lblDocker, txtDocker, btnDocker, lblPi, txtPi, btnPi, btnSave });
+            settingsForm.ShowDialog();
         }
     }
 }

@@ -161,6 +161,12 @@ namespace PiNodeMonitorWinForm
                     lblStatus.Text = "Checking Docker...";
                     lblInstruction.Text = "Checking if Docker Desktop is installed and running.\nThis is required to run the Pi Node.";
                     bool dockerOk = await NodeUtility.IsDockerRunningAsync();
+                    
+                    if (!dockerOk) {
+                        btnManual.Visible = true;
+                        btnManual.Text = "Set Manual Path";
+                    }
+
                     UpdateStepUI(dockerOk, "Docker is Running!", "Docker is NOT running or not installed.", "Download Docker");
                     break;
 
@@ -173,7 +179,8 @@ namespace PiNodeMonitorWinForm
                     if (await NodeUtility.IsContainerExistAsync("pi-consensus")) { containerOk = true; NodeUtility.CurrentContainerName = "pi-consensus"; }
                     else if (await NodeUtility.IsContainerExistAsync("testnet2")) { containerOk = true; NodeUtility.CurrentContainerName = "testnet2"; }
 
-                    if (!containerOk) btnManual.Visible = true;
+                    btnManual.Visible = true;
+                    btnManual.Text = containerOk ? "Custom Container Name" : "Set Manual App Path";
 
                     UpdateStepUI(containerOk, "Node Container Found!", "Container missing.", "Open Guide/App");
                     break;
@@ -330,22 +337,60 @@ namespace PiNodeMonitorWinForm
 
         private async void BtnManual_Click(object sender, EventArgs e)
         {
-            string input = ShowInputDialog("Enter Container Name", "If you named your container differently, enter it here:\n(Default: pi-consensus)");
-            if (!string.IsNullOrWhiteSpace(input))
+            if (_currentStep == 2)
             {
-                lblInstruction.Text = $"Checking custom container '{input}'...";
-                bool ok = await NodeUtility.IsContainerExistAsync(input);
-                if (ok)
+                if (PickApplicationPath("Docker Desktop 실행 파일 선택 (Docker Desktop.exe)", path => NodeUtility.Config.CustomDockerPath = path))
                 {
-                    NodeUtility.CurrentContainerName = input;
-                    MessageBox.Show($"Found container '{input}'!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadStep(4); // Success, go to next step directly (Firewall)
+                    NodeUtility.SaveConfig();
+                    LoadStep(2); // Re-check
+                }
+            }
+            else if (_currentStep == 3)
+            {
+                // If container is missing, we prioritize setting the app path to help the user start the app
+                bool containerOk = (await NodeUtility.IsContainerExistAsync("pi-consensus")) || (await NodeUtility.IsContainerExistAsync("testnet2"));
+                
+                if (!containerOk)
+                {
+                    if (PickApplicationPath("Pi Network 실행 파일 선택 (Pi Network.exe)", path => NodeUtility.Config.CustomPiAppPath = path))
+                    {
+                        NodeUtility.SaveConfig();
+                        LoadStep(3); // Re-check
+                    }
                 }
                 else
                 {
-                     MessageBox.Show($"Could not find container '{input}'.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    string input = ShowInputDialog("Enter Container Name", "If you named your container differently, enter it here:\n(Default: pi-consensus)");
+                    if (!string.IsNullOrWhiteSpace(input))
+                    {
+                        lblInstruction.Text = $"Checking custom container '{input}'...";
+                        bool ok = await NodeUtility.IsContainerExistAsync(input);
+                        if (ok)
+                        {
+                            NodeUtility.CurrentContainerName = input;
+                            MessageBox.Show($"Found container '{input}'!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            LoadStep(4); 
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Could not find container '{input}'.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
                 }
             }
+        }
+
+        private bool PickApplicationPath(string title, Action<string> saveAction)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog() { Filter = "Executable Files|*.exe", Title = title })
+            {
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    saveAction(ofd.FileName);
+                    return true;
+                }
+            }
+            return false;
         }
 
         // Helper for Input Dialog (Pure C# Code)

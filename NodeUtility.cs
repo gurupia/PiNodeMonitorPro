@@ -23,10 +23,44 @@ namespace PiNodeMonitorWinForm
         private const int SW_RESTORE = 9;
 
         public static string CurrentContainerName { get; set; }
+        public static string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+
+        public class NodeConfig
+        {
+            public string CustomDockerPath { get; set; }
+            public string CustomPiAppPath { get; set; }
+        }
+
+        public static NodeConfig Config { get; private set; }
 
         static NodeUtility()
         {
-            CurrentContainerName = "testnet2"; // Default per user feedback
+            CurrentContainerName = "testnet2"; 
+            LoadConfig();
+        }
+
+        public static void LoadConfig()
+        {
+            try
+            {
+                if (File.Exists(ConfigPath))
+                {
+                    string json = File.ReadAllText(ConfigPath);
+                    Config = Newtonsoft.Json.JsonConvert.DeserializeObject<NodeConfig>(json);
+                }
+            }
+            catch { }
+            if (Config == null) Config = new NodeConfig();
+        }
+
+        public static void SaveConfig()
+        {
+            try
+            {
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(Config, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(ConfigPath, json);
+            }
+            catch { }
         }
 
         public static async Task DetectContainerNameAsync()
