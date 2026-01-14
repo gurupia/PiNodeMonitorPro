@@ -224,29 +224,31 @@ namespace PiNodeMonitorWinForm
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
-    <title>Pi Node Remote</title>
+    <title>Pi Node Remote Pro</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
-        #header { height: 50px; background: #222; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; }
-        #stream-container { position: relative; width: 100vw; height: calc(100vh - 50px); overflow: hidden; background: #111; }
-        #screen-img { width: 100%; height: 100%; object-fit: contain; }
-        .badge { background: #444; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-        #status-bar { position: absolute; bottom: 0; width: 100%; height: 30px; background: rgba(0,0,0,0.6); display: flex; align-items: center; padding: 0 10px; font-size: 12px; }
+        body { margin: 0; background: #000; color: #fff; font-family: -apple-system, sans-serif; overflow: hidden; touch-action: none; }
+        #header { height: 50px; background: #1a1a1a; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; border-bottom: 2px solid #333; }
+        #stream-container { position: relative; width: 100vw; height: calc(100vh - 50px); overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; }
+        #screen-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .badge { background: #333; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; color: #ffeb3b; }
+        #status-bar { position: absolute; bottom: 0; width: 100%; height: 35px; background: rgba(0,0,0,0.7); display: flex; align-items: center; padding: 0 15px; font-size: 12px; color: #ccc; box-sizing: border-box; }
+        .live-indicator { width: 8px; height: 8px; background: #f44336; border-radius: 50%; margin-right: 8px; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id='header'>
-        <span>Pi Node Remote</span>
+        <div style='display:flex; align-items:center;'><div class='live-indicator'></div><strong>Pi Node Monitor</strong></div>
         <span id='pin-display' class='badge'>PIN: --</span>
     </div>
     <div id='stream-container'>
-        <img id='screen-img' draggable='false'>
+        <img id='screen-img' draggable='false' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='>
         <div id='shield' style='position:absolute;top:0;left:0;width:100%;height:100%;z-index:100;'></div>
-        <div id='status-bar'>Loading...</div>
+        <div id='status-bar'>Connecting to Node...</div>
     </div>
 
     <script>
-        let userPin = new URLSearchParams(window.location.search).get('pin') || '';
+        const userPin = new URLSearchParams(window.location.search).get('pin') || '';
         document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
 
         const img = document.getElementById('screen-img');
@@ -255,34 +257,59 @@ namespace PiNodeMonitorWinForm
         
         let isLive = true;
         let svrW = 1920, svrH = 1080;
+        let lastLoadTime = Date.now();
 
-        function updateScreen() {
-            if(!isLive) return;
-            img.src = '/api/screen?pin=' + userPin + '&t=' + Date.now();
+        // --- Adaptive Performance Loading ---
+        function loadNextImage() {
+            if (!isLive) return;
+            const nextImg = new Image();
+            nextImg.onload = () => {
+                img.src = nextImg.src;
+                const delay = Math.max(50, 200 - (Date.now() - lastLoadTime)); // Target 5fps but adapt to latency
+                lastLoadTime = Date.now();
+                setTimeout(loadNextImage, delay);
+            };
+            nextImg.onerror = () => setTimeout(loadNextImage, 500);
+            nextImg.src = '/api/screen?pin=' + userPin + '&t=' + Date.now();
         }
-        setInterval(updateScreen, 200);
+        loadNextImage();
 
         function updateStatus() {
             fetch('/api/status?pin=' + userPin)
                 .then(r => r.json())
                 .then(d => {
                     svrW = d.screenWidth; svrH = d.screenHeight;
-                    status.innerText = d.State + ' | In: ' + d.Incoming + ' | Out: ' + d.Outgoing + ' | ' + d.LocalBlock;
-                }).catch(()=>{});
+                    status.innerText = d.State + ' | In: ' + d.Incoming + ' | Out: ' + d.Outgoing + ' | Age: ' + d.LedgerAge + 's';
+                }).catch(()=>{ status.innerText = 'Connection Lost'; });
         }
-        setInterval(updateStatus, 2000);
+        setInterval(updateStatus, 3000);
 
-        // Control Logic
-        shield.addEventListener('mousedown', e => sendMouse('down', e));
-        shield.addEventListener('mouseup', e => sendMouse('up', e));
-        shield.addEventListener('mousemove', e => { if(e.buttons > 0) sendMouse('move', e); });
-
-        function sendMouse(act, e) {
+        // --- Multi-Platform Control Logic (Touch/Mouse) ---
+        function handleControl(e, act) {
+            e.preventDefault();
             const rect = shield.getBoundingClientRect();
-            const x = Math.round(((e.clientX - rect.left) / rect.width) * svrW);
-            const y = Math.round(((e.clientY - rect.top) / rect.height) * svrH);
+            let clientX, clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const x = Math.round(((clientX - rect.left) / rect.width) * svrW);
+            const y = Math.round(((clientY - rect.top) / rect.height) * svrH);
             fetch('/api/mouse/' + act + '?pin=' + userPin + '&x=' + x + '&y=' + y).catch(()=>{});
         }
+
+        shield.addEventListener('mousedown', e => handleControl(e, 'down'));
+        shield.addEventListener('mouseup', e => handleControl(e, 'up'));
+        shield.addEventListener('mousemove', e => { if(e.buttons > 0) handleControl(e, 'move'); });
+
+        shield.addEventListener('touchstart', e => handleControl(e, 'down'));
+        shield.addEventListener('touchend', e => handleControl(e, 'up'));
+        shield.addEventListener('touchmove', e => handleControl(e, 'move'));
     </script>
 </body>
 </html>";
