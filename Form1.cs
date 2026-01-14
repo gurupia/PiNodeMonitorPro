@@ -87,10 +87,12 @@ namespace PiNodeMonitorWinForm
             menuPiNode.DropDownItems.Add("합의 쿼럼 상태 (JSON)", null, async (s, e) => { try { string quorum = await client.GetStringAsync("http://localhost:31403/quorum"); MessageBox.Show(quorum, "Quorum Details"); } catch { MessageBox.Show("Core port is not reachable."); } });
             menuPiNode.DropDownItems.Add("-");
             menuPiNode.DropDownItems.Add("데이터 초기화 (Fresh Sync)", null, async (s, e) => { 
-                if (MessageBox.Show("모든 블록 데이터를 삭제하고 처음부터 다시 동기화하시겠습니까?\n이 작업은 매우 오래 걸립니다.", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) {
-                    await NodeUtility.RunCommandAsync("docker", $"stop {NodeUtility.CurrentContainerName}");
-                    await NodeUtility.RunCommandAsync("docker", $"rm {NodeUtility.CurrentContainerName}");
-                    MessageBox.Show("컨테이너가 제거되었습니다. Pi 앱을 실행하여 다시 설치를 진행하세요.");
+                if (MessageBox.Show("모든 블록 데이터를 삭제하고 처음부터 다시 동기화하시겠습니까?\n이 작업은 매우 오래 걸립니다. (최대 수일 소요)", "초기화 경고 (1/2)", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) {
+                    if (MessageBox.Show("정말로 진행하시겠습니까?\n기존에 다운로드한 블록 데이터가 모두 삭제되며 되돌릴 수 없습니다.", "최종 확인 (2/2)", MessageBoxButtons.OKCancel, MessageBoxIcon.Error) == DialogResult.OK) {
+                        await NodeUtility.RunCommandAsync("docker", $"stop {NodeUtility.CurrentContainerName}");
+                        await NodeUtility.RunCommandAsync("docker", $"rm {NodeUtility.CurrentContainerName}");
+                        MessageBox.Show("컨테이너와 데이터가 제거되었습니다.\n이제 파이 앱을 실행하여 'Node' 메뉴 내에서 [Continue]를 눌러 재설치를 진행하세요.", "완료");
+                    }
                 }
             });
 
