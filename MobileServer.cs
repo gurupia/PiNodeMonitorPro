@@ -26,6 +26,7 @@ namespace PiNodeMonitorWinForm
         private static HttpListener _listener;
         private static CancellationTokenSource _cts;
         private static int _screenReqCount = 0;
+        private static DateTime _serverStartTime;
 
         public static string CurrentIpAddress { get; private set; } = "127.0.0.1";
         public static string PublicIpAddress { get; private set; } = "Unknown";
@@ -122,6 +123,7 @@ namespace PiNodeMonitorWinForm
             
             try 
             {
+                _serverStartTime = DateTime.Now;
                 Log("Starting Mobile Server...");
                 try { NativeCapture.Engine_Initialize(); } catch { }
 
@@ -196,6 +198,24 @@ namespace PiNodeMonitorWinForm
                         Log($"[MOBILE_LOG] {body}");
                     }
                     SendResponse(res, "ok", "text/plain");
+                    return;
+                }
+                
+                // API: Health Check (No PIN required - for monitoring)
+                if (path == "/api/health")
+                {
+                    var uptime = DateTime.Now - _serverStartTime;
+                    var health = new {
+                        status = "ok",
+                        server = "MobileServer",
+                        version = "1.0",
+                        uptime = $"{uptime.Days}d {uptime.Hours}h {uptime.Minutes}m",
+                        uptimeSeconds = (int)uptime.TotalSeconds,
+                        port = Port,
+                        ip = CurrentIpAddress,
+                        timestamp = DateTime.Now.ToString("o")
+                    };
+                    SendResponse(res, JsonConvert.SerializeObject(health), "application/json");
                     return;
                 }
                 // Log every request for debugging
