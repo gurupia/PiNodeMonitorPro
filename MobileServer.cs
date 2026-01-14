@@ -352,6 +352,25 @@ namespace PiNodeMonitorWinForm
             return bestMatch;
         }
 
+        public static System.Collections.Generic.List<string> GetAllLocalIpAddresses()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            try 
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        string s = ip.ToString();
+                        if (s != "127.0.0.1") list.Add(s);
+                    }
+                }
+            } catch { }
+            if (list.Count == 0) list.Add("127.0.0.1");
+            return list;
+        }
+
         private static async Task DetectPublicIpAsync()
         {
             try
