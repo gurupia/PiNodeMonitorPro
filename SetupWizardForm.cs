@@ -233,10 +233,16 @@ namespace PiNodeMonitorWinForm
 
         private async void BtnNext_Click(object sender, EventArgs e)
         {
-            // Re-verify before moving
             btnNext.Enabled = false;
-            bool ok = false;
+            
+            // 실물 체크: 도커가 실행 중이면 이미 모든 환경이 갖춰진 것이므로 무조건 다음 단계로 진행
+            if (await NodeUtility.IsDockerRunningAsync())
+            {
+                LoadStep(_currentStep + 1);
+                return;
+            }
 
+            bool ok = false;
             if (_currentStep == 1)
             {
                 bool vmp = await NodeUtility.IsWindowsFeatureEnabledAsync("VirtualMachinePlatform");
@@ -246,31 +252,16 @@ namespace PiNodeMonitorWinForm
             else if (_currentStep == 2) ok = await NodeUtility.IsDockerRunningAsync();
             else if (_currentStep == 3) 
             {
-                ok = await NodeUtility.IsContainerExistAsync("pi-consensus");
-                if (!ok) ok = await NodeUtility.IsContainerExistAsync("testnet2");
+                ok = (await NodeUtility.IsContainerExistAsync("pi-consensus")) || (await NodeUtility.IsContainerExistAsync("testnet2"));
             }
             else if (_currentStep == 4)
             {
-                // Allow skip
-                if (btnNext.Text.Contains("Skip"))
-                {
-                    ok = true; // Force pass
-                }
-                else
-                {
-                    ok = await NodeUtility.IsFirewallRulePresentAsync();
-                }
+                if (btnNext.Text.Contains("Skip")) ok = true;
+                else ok = await NodeUtility.IsFirewallRulePresentAsync();
             }
 
-            if (ok)
-            {
-                LoadStep(_currentStep + 1);
-            }
-            else
-            {
-                MessageBox.Show("The condition is not met yet. Please try the Fix button or check manually.", "Check Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                LoadStep(_currentStep); // Reload to reset UI
-            }
+            if (ok) LoadStep(_currentStep + 1);
+            else LoadStep(_currentStep); // Reload current step status
         }
 
         private void BtnSkip_Click(object sender, EventArgs e)

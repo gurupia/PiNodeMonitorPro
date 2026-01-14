@@ -66,40 +66,36 @@ namespace PiNodeMonitorWinForm
             // --- Docker Menu ---
             ToolStripMenuItem menuDocker = new ToolStripMenuItem("Docker");
             menuDocker.DropDownItems.Add("도커 실행 (Start)", null, (s, e) => { 
-                try { 
-                    if (Process.GetProcessesByName("Docker Desktop").Length > 0) {
-                        NodeUtility.ActivateProcess("Docker Desktop");
-                        return;
+                string path = NodeUtility.Config.CustomDockerPath;
+                
+                // 1. 설정된 경로 확인 or 기본 경로 확인
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
+                    string defaultPath = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
+                    if (File.Exists(defaultPath)) path = defaultPath;
+                    else path = null;
+                }
+
+                // 2. 실행 or 수동 지정
+                if (path != null && File.Exists(path)) {
+                    Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+                } else {
+                    if (MessageBox.Show("Docker Desktop 실행 파일을 찾을 수 없습니다.\n직접 파일을 지정하시겠습니까?", "파일 찾기", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes) {
+                        using (OpenFileDialog ofd = new OpenFileDialog()) {
+                            ofd.Filter = "Executable files (*.exe)|*.exe";
+                            ofd.Title = "Docker Desktop 실행 파일 선택";
+                            if (ofd.ShowDialog() == DialogResult.OK) {
+                                NodeUtility.Config.CustomDockerPath = ofd.FileName;
+                                NodeUtility.SaveConfig();
+                                Process.Start(new ProcessStartInfo { FileName = ofd.FileName, UseShellExecute = true });
+                            }
+                        }
                     }
-
-                    string path = NodeUtility.Config.CustomDockerPath;
-                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) path = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
-
-                    if (File.Exists(path)) Process.Start("cmd.exe", $"/c start \"\" \"{path}\"");
-                    else Process.Start("cmd.exe", "/c start docker-desktop://");
-                } catch (Exception ex) { 
-                    MessageBox.Show($"도커를 실행할 수 없습니다: {ex.Message}", "에러"); 
-                } 
-            });
-            menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { 
-                try { 
-                    if (Process.GetProcessesByName("Docker Desktop").Length > 0) {
-                        NodeUtility.ActivateProcess("Docker Desktop");
-                        // Protocol for dashboard specifically might still be useful even if running
-                        try { Process.Start("cmd.exe", "/c start docker-desktop://dashboard"); } catch { }
-                        return;
-                    }
-
-                    string path = NodeUtility.Config.CustomDockerPath;
-                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) path = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
-
-                    if (File.Exists(path)) Process.Start("cmd.exe", $"/c start \"\" \"{path}\"");
-                    else Process.Start("cmd.exe", "/c start docker-desktop://dashboard");
-                } catch { 
-                    NodeUtility.ActivateProcess("Docker Desktop");
                 }
             });
-            menuDocker.DropDownItems.Add("도커 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Docker Desktop"); });
+            
+            menuDocker.DropDownItems.Add("도커 활성화 (Show)", null, (s, e) => { 
+                NodeUtility.ActivateProcess("Docker Desktop");
+            });
             menuDocker.DropDownItems.Add("도커 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Docker Desktop"); });
             menuDocker.DropDownItems.Add("-"); // Separator
             menuDocker.DropDownItems.Add("도커 서비스 재시작", null, async (s, e) => { await NodeUtility.RunCommandAsync("powershell", "-Command \"Restart-Service *docker*\"", true); });
@@ -167,7 +163,7 @@ namespace PiNodeMonitorWinForm
             menuDashboard.DropDownItems.Add("View mobile_access.log", null, (s, e) => { try { Process.Start(MobileServer.LogPath); } catch { } });
             menuDashboard.DropDownItems.Add("-");
             menuDashboard.DropDownItems.Add("Reset Uptime Stats", null, (s, e) => { _totalSeconds = 0; _totalSyncedSeconds = 0; });
-            menuDashboard.DropDownItems.Add("Reset Wallet Balance", null, (s, e) => { _lastBalance = -1; UpdateWalletBalanceAsync(); });
+            menuDashboard.DropDownItems.Add("Reset Wallet Balance", null, async (s, e) => { _lastBalance = -1; await UpdateWalletBalanceAsync(); });
             menuDashboard.DropDownItems.Add("-");
             menuDashboard.DropDownItems.Add("환경 설정 마법사 (Setup)", null, (s, e) => { 
                 using (var wizard = new SetupWizardForm()) { wizard.ShowDialog(); } 
@@ -609,9 +605,7 @@ namespace PiNodeMonitorWinForm
 
                 try 
                 {
-                    using (var ctsMetric = new CancellationTokenSource(1500))
-                    {
-                        string metrics = await client.GetStringAsync("http://localhost:31403/metrics");
+                    string metrics = await client.GetStringAsync("http://localhost:31403/metrics");
                     
                     int mOut = ParseMetricValue(metrics, "stellar_node_peers_connected_outbound");
                     int mIn = ParseMetricValue(metrics, "stellar_node_peers_connected_inbound");
@@ -653,7 +647,6 @@ namespace PiNodeMonitorWinForm
                         
                         metricsSuccess = true;
                     }
-                }
             }
             catch { }
 

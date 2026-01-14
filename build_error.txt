@@ -1,7 +1,6 @@
-F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\MobileServer.cs(192,21): error CS4008: void'?????'void'瑜??ъ슜?????놁뒿?덈떎. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
 
-鍮뚮뱶?섏? 紐삵뻽?듬땲??
-    寃쎄퀬 4媛?
-    ?ㅻ쪟 1媛?
-
-寃쎄낵 ?쒓컙: 00:00:01.45
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\Form1.cs(890,34): warning CS8632: nullable 참조 형식에 대한 주석은 코드에서 '#nullable' 주석 컨텍스트 내에만 사용되어야 합니다. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\RemoteViewForm.cs(67,13): warning CS4014: 이 호출이 대기되지 않으므로 호출이 완료되기 전에 현재 메서드가 계속 실행됩니다. 호출 결과에 'await' 연산자를 적용해 보세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\SetupWizardForm.cs(288,43): error CS0117: 'NodeUtility'에는 'EnableWindowsFeaturesAsync'에 대한 정의가 포함되어 있지 않습니다. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\SetupWizardForm.cs(296,43): error CS0117: 'NodeUtility'에는 'UpdateWslAsync'에 대한 정의가 포함되어 있지 않습니다. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\Form1.cs(390,17): warning CS4014: 이 호출이 대기되지 않으므로 호출이 완료되기 전에 현재 메서드가 계속 실행됩니다. 호출 결과에 'await' 연산자를 적용해 보세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
