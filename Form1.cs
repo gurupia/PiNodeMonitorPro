@@ -67,6 +67,11 @@ namespace PiNodeMonitorWinForm
             ToolStripMenuItem menuDocker = new ToolStripMenuItem("Docker");
             menuDocker.DropDownItems.Add("도커 실행 (Start)", null, (s, e) => { 
                 try { 
+                    if (Process.GetProcessesByName("Docker Desktop").Length > 0) {
+                        NodeUtility.ActivateProcess("Docker Desktop");
+                        return;
+                    }
+
                     string path = NodeUtility.Config.CustomDockerPath;
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) path = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
 
@@ -78,6 +83,13 @@ namespace PiNodeMonitorWinForm
             });
             menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { 
                 try { 
+                    if (Process.GetProcessesByName("Docker Desktop").Length > 0) {
+                        NodeUtility.ActivateProcess("Docker Desktop");
+                        // Protocol for dashboard specifically might still be useful even if running
+                        try { Process.Start("cmd.exe", "/c start docker-desktop://dashboard"); } catch { }
+                        return;
+                    }
+
                     string path = NodeUtility.Config.CustomDockerPath;
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) path = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
 
@@ -106,6 +118,11 @@ namespace PiNodeMonitorWinForm
             
             menuPiNode.DropDownItems.Add("노드 앱 실행 (Start)", null, (s, e) => { 
                 try { 
+                    if (Process.GetProcessesByName("Pi Network").Length > 0) {
+                        NodeUtility.ActivateProcess("Pi Network");
+                        return;
+                    }
+
                     string path = NodeUtility.Config.CustomPiAppPath;
                     if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
                         Process.Start("cmd.exe", $"/c start \"\" \"{path}\"");
