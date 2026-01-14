@@ -45,10 +45,7 @@ namespace PiNodeMonitorWinForm
             var ips = MobileServer.GetAllLocalIpAddresses();
             foreach(var ip in ips) cboIps.Items.Add(ip);
             if (cboIps.Items.Count > 0) cboIps.SelectedIndex = 0;
-            // Try to select smart default
-            for(int i=0; i<cboIps.Items.Count; i++) {
-                if (cboIps.Items[i].ToString() == MobileServer.CurrentIpAddress) cboIps.SelectedIndex = i;
-            }
+            
             cboIps.SelectedIndexChanged += (s, e) => UpdateQR();
             pnlCtrl.Controls.Add(cboIps);
 

@@ -336,20 +336,9 @@ namespace PiNodeMonitorWinForm
 
         private static string GetLocalIpAddress()
         {
-            var host = Dns.GetHostEntry(Dns.GetHostName());
-            string bestMatch = "127.0.0.1";
-            foreach (var ip in host.AddressList)
-            {
-                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                {
-                    string s = ip.ToString();
-                    // Prefer 192.168 (Home) or 10. (Private)
-                    if (s.StartsWith("192.168.") || s.StartsWith("10.")) return s;
-                    // Fallback to any valid IP (excluding localhost loopback which we cover anyway)
-                    bestMatch = s;
-                }
-            }
-            return bestMatch;
+            var ips = GetAllLocalIpAddresses();
+            if (ips.Count > 0) return ips[0];
+            return "127.0.0.1";
         }
 
         public static System.Collections.Generic.List<string> GetAllLocalIpAddresses()
