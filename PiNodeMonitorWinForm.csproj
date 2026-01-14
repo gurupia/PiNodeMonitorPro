@@ -18,6 +18,8 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,10 +44,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="GurupiaCapture.Core.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </None>
+    <EmbeddedResource Include="costura64\GurupiaCapture.Core.dll" />
   </ItemGroup>
 
 </Project>

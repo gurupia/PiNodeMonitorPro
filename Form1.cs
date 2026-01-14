@@ -45,6 +45,11 @@ namespace PiNodeMonitorWinForm
         private BonusService _bonusService;
         private double _currentBonus = 0;
         private int _bonusUpdateCounter = 0;
+
+        // Cloudflare Tunnel
+        private CloudflareTunnelService _tunnelService;
+        private Button btnSecureTunnel;
+        private Label lblTunnelLink;
         
         public Form1()
         {
@@ -57,6 +62,24 @@ namespace PiNodeMonitorWinForm
             
             // Initialize Services
             _bonusService = new BonusService("387f2aaa-2883-443f-b69c-fe6a77647b1f");
+            _tunnelService = new CloudflareTunnelService();
+            _tunnelService.UrlGenerated += (url) => {
+                this.Invoke((Action)(() => {
+                    lblTunnelLink.Text = "Secure URL: " + url;
+                    lblTunnelLink.ForeColor = Color.LimeGreen;
+                    btnSecureTunnel.Text = "🔒 Close Tunnel";
+                    btnSecureTunnel.Enabled = true;
+                }));
+            };
+            _tunnelService.Stopped += () => {
+                this.Invoke((Action)(() => {
+                    lblTunnelLink.Text = "Secure URL: Not Active";
+                    lblTunnelLink.ForeColor = Color.Gray;
+                    btnSecureTunnel.Text = "🌐 Secure Link";
+                    btnSecureTunnel.Enabled = true;
+                }));
+            };
+
             try 
             { 
                 var assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -191,7 +214,50 @@ namespace PiNodeMonitorWinForm
             btnMulti.Click += (s, e) => { new MultiMonitorForm().Show(); };
             buttonFlow.Controls.Add(btnMulti);
 
+            btnSecureTunnel = new Button();
+            btnSecureTunnel.Text = "🌐 Secure Link";
+            btnSecureTunnel.Size = new Size(130, 40);
+            btnSecureTunnel.BackColor = Color.SlateGray;
+            btnSecureTunnel.ForeColor = Color.White;
+            btnSecureTunnel.FlatStyle = FlatStyle.Flat;
+            btnSecureTunnel.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            btnSecureTunnel.Click += async (s, e) => {
+                if (_tunnelService.IsRunning)
+                {
+                    btnSecureTunnel.Enabled = false;
+                    _tunnelService.StopTunnel();
+                }
+                else
+                {
+                    btnSecureTunnel.Enabled = false;
+                    btnSecureTunnel.Text = "⏳ Opening...";
+                    await _tunnelService.StartTunnelAsync(MobileServer.Port);
+                }
+            };
+            buttonFlow.Controls.Add(btnSecureTunnel);
+
             mainFlow.Controls.Add(buttonFlow);
+
+            // 4. Tunnel URL Display
+            lblTunnelLink = new Label();
+            lblTunnelLink.Text = "Secure URL: Not Active";
+            lblTunnelLink.AutoSize = true;
+            lblTunnelLink.ForeColor = Color.Gray;
+            lblTunnelLink.Font = new Font("Segoe UI", 9, FontStyle.Italic);
+            lblTunnelLink.Margin = new Padding(10, 0, 0, 10);
+            lblTunnelLink.Cursor = Cursors.Hand;
+            lblTunnelLink.Click += (s, e) => {
+                if (_tunnelService.IsRunning && !string.IsNullOrEmpty(_tunnelService.TunnelUrl))
+                {
+                    Clipboard.SetText(_tunnelService.TunnelUrl);
+                    MessageBox.Show("Secure URL copied to clipboard!");
+                    if (_tunnelService.TunnelUrl.StartsWith("http"))
+                    {
+                        Process.Start(_tunnelService.TunnelUrl);
+                    }
+                }
+            };
+            mainFlow.Controls.Add(lblTunnelLink);
 
             // Rest of Toggle Logic
             Action<bool> ToggleWalletEdit = (editing) => {
