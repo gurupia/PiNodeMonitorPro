@@ -45,18 +45,70 @@ namespace PiNodeMonitorWinForm
 
         public static NodeStatusData CurrentStatus { get; set; } = new NodeStatusData();
 
-        public static string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mobile_access.log");
+        public static string LogDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        private static string _currentLogPath;
+        private static readonly object _logLock = new object();
+        private const int MaxLogSizeMB = 10;
+        private const int LogRetentionDays = 7;
 
         public static void Log(string message)
         {
             string logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
-            RequestLogged?.Invoke(message); // Still notify UI
+            RequestLogged?.Invoke(message);
+            
             try 
             {
-                File.AppendAllText(LogPath, logLine + Environment.NewLine);
+                lock (_logLock)
+                {
+                    EnsureLogDirectory();
+                    string logPath = GetCurrentLogPath();
+                    File.AppendAllText(logPath, logLine + Environment.NewLine);
+                }
             }
             catch { }
         }
+
+        private static void EnsureLogDirectory()
+        {
+            if (!Directory.Exists(LogDir))
+            {
+                Directory.CreateDirectory(LogDir);
+                CleanOldLogs();
+            }
+        }
+
+        private static string GetCurrentLogPath()
+        {
+            string dateStr = DateTime.Now.ToString("yyyy-MM-dd");
+            string basePath = Path.Combine(LogDir, $"mobile_{dateStr}.log");
+            
+            // Check file size, rotate if needed
+            if (File.Exists(basePath))
+            {
+                var info = new FileInfo(basePath);
+                if (info.Length > MaxLogSizeMB * 1024 * 1024)
+                {
+                    string rotatedPath = Path.Combine(LogDir, $"mobile_{dateStr}_{DateTime.Now:HHmmss}.log");
+                    File.Move(basePath, rotatedPath);
+                }
+            }
+            return basePath;
+        }
+
+        private static void CleanOldLogs()
+        {
+            try
+            {
+                var cutoff = DateTime.Now.AddDays(-LogRetentionDays);
+                foreach (var file in Directory.GetFiles(LogDir, "mobile_*.log"))
+                {
+                    if (File.GetCreationTime(file) < cutoff)
+                        File.Delete(file);
+                }
+            }
+            catch { }
+        }
+
 
         public static void RegeneratePin()
         {

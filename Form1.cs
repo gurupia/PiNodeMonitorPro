@@ -171,7 +171,7 @@ namespace PiNodeMonitorWinForm
             ToolStripMenuItem menuDashboard = new ToolStripMenuItem("Dashboard");
             menuDashboard.DropDownItems.Add("Force Refresh Dashboard", null, async (s, e) => await UpdateDashboardAsync());
             menuDashboard.DropDownItems.Add("View Bonus History", null, (s, e) => btnShowHistory_Click(s, e));
-            menuDashboard.DropDownItems.Add("View mobile_access.log", null, (s, e) => { try { Process.Start(MobileServer.LogPath); } catch { } });
+            menuDashboard.DropDownItems.Add("View Logs Folder", null, (s, e) => { try { Process.Start("explorer.exe", MobileServer.LogDir); } catch { } });
             menuDashboard.DropDownItems.Add("-");
             menuDashboard.DropDownItems.Add("Reset Uptime Stats", null, (s, e) => { _totalSeconds = 0; _totalSyncedSeconds = 0; });
             menuDashboard.DropDownItems.Add("Reset Wallet Balance", null, async (s, e) => { _lastBalance = -1; await UpdateWalletBalanceAsync(); });
