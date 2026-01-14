@@ -41,9 +41,19 @@ namespace PiNodeMonitorWinForm
             cboIps.Size = new Size(160, 25);
             cboIps.DropDownStyle = ComboBoxStyle.DropDownList;
             
-            // Populate IPs
-            var ips = MobileServer.GetAllLocalIpAddresses();
-            foreach(var ip in ips) cboIps.Items.Add(ip);
+            // Populate IPs: Public IP first (if available), then local IPs
+            string publicIp = MobileServer.PublicIpAddress;
+            if (!string.IsNullOrEmpty(publicIp) && publicIp != "Unknown")
+            {
+                cboIps.Items.Add($"[공인] {publicIp}");
+            }
+            
+            var localIps = MobileServer.GetAllLocalIpAddresses();
+            foreach(var ip in localIps) 
+            {
+                if (ip != "127.0.0.1") cboIps.Items.Add(ip);
+            }
+            
             if (cboIps.Items.Count > 0) cboIps.SelectedIndex = 0;
             
             cboIps.SelectedIndexChanged += (s, e) => UpdateQR();
@@ -80,15 +90,51 @@ namespace PiNodeMonitorWinForm
             lblUrl.Click += (s, e) => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = lblUrl.Text, UseShellExecute = true }); } catch {} };
             this.Controls.Add(lblUrl);
 
+            // Subscribe to Public IP detection event
+            MobileServer.PublicIpDetected += OnPublicIpDetected;
+            this.FormClosed += (s, e) => MobileServer.PublicIpDetected -= OnPublicIpDetected;
+
             UpdateQR();
+        }
+
+        private void OnPublicIpDetected(string publicIp)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => OnPublicIpDetected(publicIp)));
+                return;
+            }
+
+            // Check if public IP is already in the list
+            string publicItem = $"[공인] {publicIp}";
+            if (!cboIps.Items.Contains(publicItem) && publicIp != "Failed")
+            {
+                cboIps.Items.Insert(0, publicItem);
+                cboIps.SelectedIndex = 0;
+            }
         }
 
         private void UpdateQR()
         {
             try
             {
-                string ip = chkRemote.Checked ? MobileServer.PublicIpAddress : cboIps.SelectedItem?.ToString();
-                if (string.IsNullOrEmpty(ip)) ip = "127.0.0.1";
+                string selectedItem = cboIps.SelectedItem?.ToString() ?? "";
+                string ip;
+                
+                if (chkRemote.Checked)
+                {
+                    ip = MobileServer.PublicIpAddress;
+                }
+                else if (selectedItem.StartsWith("[공인]"))
+                {
+                    ip = selectedItem.Replace("[공인] ", "");
+                }
+                else
+                {
+                    ip = selectedItem;
+                }
+                
+                if (string.IsNullOrEmpty(ip) || ip == "Unknown") ip = "127.0.0.1";
                 
                 string url = $"http://{ip}:{MobileServer.Port}/?pin={MobileServer.CurrentPin}";
                 lblUrl.Text = url;

@@ -34,6 +34,7 @@ namespace PiNodeMonitorWinForm
         public static string LastCaptureMode { get; private set; } = "Ready";
 
         public static event Action<string> RequestLogged;
+        public static event Action<string> PublicIpDetected;
 
         public static NodeStatusData CurrentStatus { get; set; } = new NodeStatusData();
 
@@ -72,13 +73,23 @@ namespace PiNodeMonitorWinForm
 
                 _listener = new HttpListener();
                 
-                // 1. Loopback (No admin required)
+                // 1. Loopback (Always works without admin)
                 _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+                _listener.Prefixes.Add($"http://localhost:{Port}/");
                 
-                // 2. Local IP (Requires admin or netsh acl)
-                try {
-                    _listener.Prefixes.Add($"http://{CurrentIpAddress}:{Port}/");
-                } catch { }
+                // 2. Try to bind to the detected local IP (for LAN access)
+                if (CurrentIpAddress != "127.0.0.1")
+                {
+                    try 
+                    { 
+                        _listener.Prefixes.Add($"http://{CurrentIpAddress}:{Port}/"); 
+                        Log($"Bound to LAN IP: {CurrentIpAddress}");
+                    } 
+                    catch (Exception ex) 
+                    { 
+                        Log($"Warning: Could not bind to {CurrentIpAddress}: {ex.Message}"); 
+                    }
+                }
 
                 _listener.Start();
 
@@ -86,7 +97,8 @@ namespace PiNodeMonitorWinForm
                 _ = Task.Run(() => HandleRequests(_cts.Token));
                 Log($"Server Started. PIN: {CurrentPin}");
                 Log($"Local: http://127.0.0.1:{Port}/?pin={CurrentPin}");
-                Log($"LAN: http://{CurrentIpAddress}:{Port}/?pin={CurrentPin}");
+                if (CurrentIpAddress != "127.0.0.1")
+                    Log($"LAN: http://{CurrentIpAddress}:{Port}/?pin={CurrentPin}");
             }
             catch (Exception ex)
             {
@@ -425,7 +437,9 @@ namespace PiNodeMonitorWinForm
             {
                 using (var client = new System.Net.Http.HttpClient())
                 {
+                    client.Timeout = TimeSpan.FromSeconds(5);
                     PublicIpAddress = await client.GetStringAsync("https://api.ipify.org");
+                    PublicIpDetected?.Invoke(PublicIpAddress);
                 }
             }
             catch { PublicIpAddress = "Failed"; }
