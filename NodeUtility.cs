@@ -20,23 +20,29 @@ namespace PiNodeMonitorWinForm
         }
         public static void SaveConfig() { try { File.WriteAllText(ConfigPath, Newtonsoft.Json.JsonConvert.SerializeObject(Config, Newtonsoft.Json.Formatting.Indented)); } catch { } }
 
-        // [활성화] 외부 파워쉘 스크립트 파일 실행 (사용자 요청 반영)
+        // [활성화] 보안 강화: 검증된 로직을 내장하여 실행 (외부 파일 변조 방지 + SysNative 64비트 호환)
         public static bool ActivateProcess(string name) {
             try {
-                // 1. 스크립트 경로 확인
-                string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts", "Activate-Process-Window.ps1");
-                if (!File.Exists(scriptPath)) return false;
-
-                // 2. 64비트 파워쉘(SysNative) 경로 확보
-                string ps = Path.Combine(Environment.GetEnvironmentVariable("SystemRoot"), "SysNative", "WindowsPowerShell", "v1.0", "powershell.exe");
-                if (!File.Exists(ps)) ps = "powershell";
-
-                // 3. 파일 직접 실행
-                var psi = new ProcessStartInfo(ps, $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -ProcessName \"{name}\"") {
+                string script = $@"
+$ErrorActionPreference = 'SilentlyContinue'
+$p = Get-Process '{name}' | Where-Object {{ $_.MainWindowHandle -ne 0 }} | Select-Object -First 1
+if ($p) {{
+    $sig = @'
+    [DllImport(""user32.dll"")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport(""user32.dll"")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+'@
+    $w = Add-Type -MemberDefinition $sig -Name ""Win32Util"" -Namespace ""Gurupia"" -PassThru
+    $w::ShowWindow($p.MainWindowHandle, 9)
+    $w::SetForegroundWindow($p.MainWindowHandle)
+}}";
+                string b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+                
+                // 3. 64비트 환경이므로 기본 powershell 호출 (자동으로 System32의 64비트 버전 사용됨)
+                var psi = new ProcessStartInfo("powershell", $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {b64}") {
                     CreateNoWindow = true,
                     UseShellExecute = false
                 };
-                
+
                 using (var p = Process.Start(psi)) {
                     p.WaitForExit();
                 }

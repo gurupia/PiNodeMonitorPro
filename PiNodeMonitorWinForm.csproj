@@ -48,10 +48,5 @@
     <EmbeddedResource Include="costura64\GurupiaCapture.Core.dll" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="scripts\**">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 
 </Project>

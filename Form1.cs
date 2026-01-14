@@ -68,7 +68,7 @@ namespace PiNodeMonitorWinForm
             menuDocker.DropDownItems.Add("도커 실행 (Start)", null, (s, e) => { 
                 string path = NodeUtility.Config.CustomDockerPath;
                 
-                // 1. 설정된 경로 확인 or 기본 경로 확인
+                // 1. 설정된 경로 확인 or 기본 경로 확인 (64비트 전용)
                 if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
                     string defaultPath = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
                     if (File.Exists(defaultPath)) path = defaultPath;
@@ -98,10 +98,21 @@ namespace PiNodeMonitorWinForm
             });
             menuDocker.DropDownItems.Add("도커 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Docker Desktop"); });
             menuDocker.DropDownItems.Add("-"); // Separator
-            menuDocker.DropDownItems.Add("도커 서비스 재시작", null, async (s, e) => { await NodeUtility.RunCommandAsync("powershell", "-Command \"Restart-Service *docker*\"", true); });
+            menuDocker.DropDownItems.Add("도커 서비스 재시작", null, async (s, e) => { 
+                try { await NodeUtility.RunCommandAsync("powershell", "-Command \"Restart-Service *docker*\"", true); } 
+                catch (Exception ex) { MessageBox.Show($"서비스 재시작 실패: {ex.Message}", "에러"); }
+            });
             menuDocker.DropDownItems.Add("실시간 로그 보기 (Tail)", null, (s, e) => { try { Process.Start("cmd", $"/c docker logs -f {NodeUtility.CurrentContainerName} & pause"); } catch { } });
-            menuDocker.DropDownItems.Add("미사용 리소스 정리 (Prune)", null, async (s, e) => { if (MessageBox.Show("미사용 도커 리소스를 모두 정리하시겠습니까?", "Prune", MessageBoxButtons.YesNo) == DialogResult.Yes) await NodeUtility.RunCommandAsync("docker", "system prune -f"); });
-            menuDocker.DropDownItems.Add("WSL2 상태 점검", null, async (s, e) => { await NodeUtility.RunCommandAsync("powershell", "-Command \"wsl --status; pause\"", false); });
+            menuDocker.DropDownItems.Add("미사용 리소스 정리 (Prune)", null, async (s, e) => { 
+                try { 
+                    if (MessageBox.Show("미사용 도커 리소스를 모두 정리하시겠습니까?", "Prune", MessageBoxButtons.YesNo) == DialogResult.Yes) 
+                        await NodeUtility.RunCommandAsync("docker", "system prune -f"); 
+                } catch (Exception ex) { MessageBox.Show($"Prune 실패: {ex.Message}", "에러"); }
+            });
+            menuDocker.DropDownItems.Add("WSL2 상태 점검", null, async (s, e) => { 
+                try { await NodeUtility.RunCommandAsync("powershell", "-Command \"wsl --status; pause\"", false); } 
+                catch (Exception ex) { MessageBox.Show($"WSL 점검 실패: {ex.Message}", "에러"); }
+            });
 
             // --- Pi Node Menu ---
             ToolStripMenuItem menuPiNode = new ToolStripMenuItem("Pi Node");
@@ -322,7 +333,9 @@ namespace PiNodeMonitorWinForm
             btnMobile.Font = new Font("Segoe UI", 9, FontStyle.Bold);
             btnMobile.Click += (s, e) => {
                 try {
-                    using (var qr = new QRForm($"http://{MobileServer.CurrentIpAddress}:{MobileServer.Port}")) {
+                    MobileServer.RegeneratePin(); // 1. Refresh PIN on click
+                    // 2. Add PIN to URL for auto-auth
+                    using (var qr = new QRForm($"http://{MobileServer.CurrentIpAddress}:{MobileServer.Port}/?pin={MobileServer.CurrentPin}")) {
                         qr.ShowDialog(this);
                     }
                 } catch (Exception ex) { MessageBox.Show(ex.Message); }

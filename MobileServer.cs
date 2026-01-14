@@ -39,7 +39,7 @@ namespace PiNodeMonitorWinForm
 
         public static string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mobile_access.log");
 
-        private static void Log(string message)
+        public static void Log(string message)
         {
             string logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
             RequestLogged?.Invoke(message); // Still notify UI
@@ -48,6 +48,12 @@ namespace PiNodeMonitorWinForm
                 File.AppendAllText(LogPath, logLine + Environment.NewLine);
             }
             catch { }
+        }
+
+        public static void RegeneratePin()
+        {
+            CurrentPin = new Random().Next(1000, 9999).ToString();
+            Log($"PIN Regenerated: {CurrentPin}");
         }
 
         public static async Task StartServerAsync()
@@ -331,12 +337,19 @@ namespace PiNodeMonitorWinForm
         private static string GetLocalIpAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
+            string bestMatch = "127.0.0.1";
             foreach (var ip in host.AddressList)
             {
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    return ip.ToString();
+                {
+                    string s = ip.ToString();
+                    // Prefer 192.168 (Home) or 10. (Private)
+                    if (s.StartsWith("192.168.") || s.StartsWith("10.")) return s;
+                    // Fallback to any valid IP (excluding localhost loopback which we cover anyway)
+                    bestMatch = s;
+                }
             }
-            return "127.0.0.1";
+            return bestMatch;
         }
 
         private static async Task DetectPublicIpAsync()
