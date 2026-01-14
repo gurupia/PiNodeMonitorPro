@@ -231,7 +231,13 @@ namespace PiNodeMonitorWinForm
                 {
                     btnSecureTunnel.Enabled = false;
                     btnSecureTunnel.Text = "⏳ Opening...";
-                    await _tunnelService.StartTunnelAsync(MobileServer.Port);
+                    bool started = await _tunnelService.StartTunnelAsync(MobileServer.Port);
+                    if (!started)
+                    {
+                        btnSecureTunnel.Enabled = true;
+                        btnSecureTunnel.Text = "🌐 Secure Link";
+                        MessageBox.Show("cloudflared.exe 파일을 찾을 수 없습니다.\n실행 파일과 같은 폴더에 파일을 복사해 주세요.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
                 }
             };
             buttonFlow.Controls.Add(btnSecureTunnel);
@@ -249,8 +255,16 @@ namespace PiNodeMonitorWinForm
             lblTunnelLink.Click += (s, e) => {
                 if (_tunnelService.IsRunning && !string.IsNullOrEmpty(_tunnelService.TunnelUrl))
                 {
-                    Clipboard.SetText(_tunnelService.TunnelUrl);
-                    MessageBox.Show("Secure URL copied to clipboard!");
+                    try 
+                    {
+                        Clipboard.SetText(_tunnelService.TunnelUrl);
+                        MessageBox.Show("Secure URL copied to clipboard!");
+                    }
+                    catch (Exception)
+                    {
+                        // Clipboard might be locked by another process. Ignore and proceed to open link.
+                    }
+
                     if (_tunnelService.TunnelUrl.StartsWith("http"))
                     {
                         Process.Start(_tunnelService.TunnelUrl);
