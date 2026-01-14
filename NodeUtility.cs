@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -9,11 +10,54 @@ namespace PiNodeMonitorWinForm
 {
     public static class NodeUtility
     {
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        private const int SW_MINIMIZE = 6;
+        private const int SW_RESTORE = 9;
+
         public static string CurrentContainerName { get; set; }
 
         static NodeUtility()
         {
-            CurrentContainerName = "pi-consensus";
+            CurrentContainerName = "testnet2"; // Default per user feedback
+        }
+
+        public static async Task DetectContainerNameAsync()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("docker", "ps --format \"{{.Names}}\"")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var p = Process.Start(psi))
+                {
+                    if (p != null)
+                    {
+                        string output = p.StandardOutput.ReadToEnd();
+                        await Task.Run(() => p.WaitForExit());
+                        string[] names = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var name in names)
+                        {
+                            if (name.Contains("pi") || name.Contains("consensus"))
+                            {
+                                CurrentContainerName = name;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         public static async Task<bool> IsDockerRunningAsync()
@@ -228,6 +272,41 @@ namespace PiNodeMonitorWinForm
                 using (var p = Process.Start(psi))
                 {
                     if (p != null) await Task.Run(() => p.WaitForExit());
+                }
+            }
+            catch { }
+        }
+
+        public static void ActivateProcess(string processName)
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(processName);
+                if (processes.Length > 0)
+                {
+                    IntPtr hWnd = processes[0].MainWindowHandle;
+                    if (hWnd != IntPtr.Zero)
+                    {
+                        ShowWindow(hWnd, SW_RESTORE);
+                        SetForegroundWindow(hWnd);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        public static void MinimizeProcess(string processName)
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(processName);
+                if (processes.Length > 0)
+                {
+                    IntPtr hWnd = processes[0].MainWindowHandle;
+                    if (hWnd != IntPtr.Zero)
+                    {
+                        ShowWindow(hWnd, SW_MINIMIZE);
+                    }
                 }
             }
             catch { }

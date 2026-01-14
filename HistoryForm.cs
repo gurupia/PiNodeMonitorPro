@@ -20,9 +20,10 @@ namespace PiNodeMonitorWinForm
 
         private void InitializeComponent()
         {
-            this.Text = "Node Bonus History";
-            this.Size = new System.Drawing.Size(600, 400);
+            this.Text = "Node Availability & Bonus History";
+            this.Size = new System.Drawing.Size(700, 450);
             this.StartPosition = FormStartPosition.CenterParent;
+            this.BackColor = System.Drawing.Color.FromArgb(45, 45, 45);
 
             _grid = new DataGridView
             {
@@ -30,10 +31,18 @@ namespace PiNodeMonitorWinForm
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 ReadOnly = true,
                 AllowUserToAddRows = false,
-                BackgroundColor = System.Drawing.Color.White,
+                BackgroundColor = System.Drawing.Color.FromArgb(30, 30, 30),
+                ForeColor = System.Drawing.Color.White,
+                GridColor = System.Drawing.Color.FromArgb(60, 60, 60),
                 RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BorderStyle = BorderStyle.None
             };
+            _grid.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(60, 60, 60);
+            _grid.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.White;
+            _grid.EnableHeadersVisualStyles = false;
+            _grid.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            _grid.DefaultCellStyle.ForeColor = System.Drawing.Color.AntiqueWhite;
 
             this.Controls.Add(_grid);
         }

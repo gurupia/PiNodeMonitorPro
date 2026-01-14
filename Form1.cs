@@ -57,8 +57,66 @@ namespace PiNodeMonitorWinForm
             client.Timeout = TimeSpan.FromSeconds(3);
             this.Height += 120; // Increased height for Wallet UI + Footer
             this.Width += 60;   // Increased width for SMS Button
-            this.Text = "Pi Node Monitor Pro (Fixed v2)";
+            this.Text = "Pi Node Monitor Pro";
             lblLocalCpuCount.Text = $"{Environment.ProcessorCount} Threads";
+            
+            // 1. Menu Strip Setup
+            MenuStrip menuStrip = new MenuStrip();
+
+            // --- Docker Menu ---
+            ToolStripMenuItem menuDocker = new ToolStripMenuItem("Docker");
+            menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { try { Process.Start("docker-desktop://"); } catch { } });
+            menuDocker.DropDownItems.Add("도커 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Docker Desktop"); });
+            menuDocker.DropDownItems.Add("도커 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Docker Desktop"); });
+            menuDocker.DropDownItems.Add("-"); // Separator
+            menuDocker.DropDownItems.Add("도커 서비스 재시작", null, async (s, e) => { await NodeUtility.RunCommandAsync("powershell", "-Command \"Restart-Service *docker*\"", true); });
+            menuDocker.DropDownItems.Add("실시간 로그 보기 (Tail)", null, (s, e) => { try { Process.Start("cmd", $"/c docker logs -f {NodeUtility.CurrentContainerName} & pause"); } catch { } });
+            menuDocker.DropDownItems.Add("미사용 리소스 정리 (Prune)", null, async (s, e) => { if (MessageBox.Show("미사용 도커 리소스를 모두 정리하시겠습니까?", "Prune", MessageBoxButtons.YesNo) == DialogResult.Yes) await NodeUtility.RunCommandAsync("docker", "system prune -f"); });
+            menuDocker.DropDownItems.Add("WSL2 상태 점검", null, async (s, e) => { await NodeUtility.RunCommandAsync("powershell", "-Command \"wsl --status; pause\"", false); });
+
+            // --- Pi Node Menu ---
+            ToolStripMenuItem menuPiNode = new ToolStripMenuItem("Pi Node");
+            string piAppPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Pi Network", "Pi Network.exe");
+            menuPiNode.DropDownItems.Add("노드 앱 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Pi Network"); });
+            menuPiNode.DropDownItems.Add("노드 앱 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Pi Network"); });
+            menuPiNode.DropDownItems.Add("-");
+            menuPiNode.DropDownItems.Add("컨테이너 재시작 (testnet2)", null, async (s, e) => { await NodeUtility.RunCommandAsync("docker", $"restart {NodeUtility.CurrentContainerName}"); await UpdateDashboardAsync(); });
+            menuPiNode.DropDownItems.Add("외부 포트 체크 (Website)", null, (s, e) => { try { Process.Start("https://pi-blockchain.net"); } catch { } });
+            menuPiNode.DropDownItems.Add("설정 폴더 열기 (Roaming)", null, (s, e) => { try { Process.Start("explorer.exe", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Pi Network")); } catch { } });
+            menuPiNode.DropDownItems.Add("노드 UUID 확인", null, async (s, e) => { string uuid = await NodeUtility.GetNodeUuidAsync(); MessageBox.Show($"Node UUID: {uuid}", "UUID Info"); if(!string.IsNullOrEmpty(uuid)) Clipboard.SetText(uuid); });
+            menuPiNode.DropDownItems.Add("합의 쿼럼 상태 (JSON)", null, async (s, e) => { try { string quorum = await client.GetStringAsync("http://localhost:31403/quorum"); MessageBox.Show(quorum, "Quorum Details"); } catch { MessageBox.Show("Core port is not reachable."); } });
+            menuPiNode.DropDownItems.Add("-");
+            menuPiNode.DropDownItems.Add("데이터 초기화 (Fresh Sync)", null, async (s, e) => { 
+                if (MessageBox.Show("모든 블록 데이터를 삭제하고 처음부터 다시 동기화하시겠습니까?\n이 작업은 매우 오래 걸립니다.", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) {
+                    await NodeUtility.RunCommandAsync("docker", $"stop {NodeUtility.CurrentContainerName}");
+                    await NodeUtility.RunCommandAsync("docker", $"rm {NodeUtility.CurrentContainerName}");
+                    MessageBox.Show("컨테이너가 제거되었습니다. Pi 앱을 실행하여 다시 설치를 진행하세요.");
+                }
+            });
+
+            // --- Dashboard Menu ---
+            ToolStripMenuItem menuDashboard = new ToolStripMenuItem("Dashboard");
+            menuDashboard.DropDownItems.Add("Force Refresh Dashboard", null, async (s, e) => await UpdateDashboardAsync());
+            menuDashboard.DropDownItems.Add("View Bonus History", null, (s, e) => btnShowHistory_Click(s, e));
+            menuDashboard.DropDownItems.Add("View mobile_access.log", null, (s, e) => { try { Process.Start(MobileServer.LogPath); } catch { } });
+            menuDashboard.DropDownItems.Add("-");
+            menuDashboard.DropDownItems.Add("Reset Uptime Stats", null, (s, e) => { _totalSeconds = 0; _totalSyncedSeconds = 0; });
+            menuDashboard.DropDownItems.Add("Reset Wallet Balance", null, (s, e) => { _lastBalance = -1; UpdateWalletBalanceAsync(); });
+
+            menuStrip.Items.Add(menuDocker);
+            menuStrip.Items.Add(menuPiNode);
+            menuStrip.Items.Add(menuDashboard);
+            menuStrip.Dock = DockStyle.Top;
+            this.MainMenuStrip = menuStrip;
+            this.Controls.Add(menuStrip);
+            
+            // Adjust mainFlow to not overlap menu
+            mainFlow.Padding = new Padding(10, 5, 10, 20); // Reset padding
+            mainFlow.Dock = DockStyle.Fill;
+            mainFlow.BringToFront(); // Ensure Fill is on top of docked items in Z-order if needed, but Docking handles it.
+            // Actually, in WinForms, the LAST control added with Dock.Fill covers others unless they were added before.
+            // But we have existing controls in Designer. 
+            // Better to add menuStrip to the Form's Controls and ensure it's at the top.
             
             // Initialize Services
             _bonusService = new BonusService("387f2aaa-2883-443f-b69c-fe6a77647b1f");

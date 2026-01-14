@@ -1,0 +1,7 @@
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\MobileServer.cs(192,21): error CS4008: void'?????'void'瑜??ъ슜?????놁뒿?덈떎. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+
+鍮뚮뱶?섏? 紐삵뻽?듬땲??
+    寃쎄퀬 4媛?
+    ?ㅻ쪟 1媛?
+
+寃쎄낵 ?쒓컙: 00:00:01.45
