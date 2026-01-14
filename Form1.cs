@@ -69,17 +69,41 @@ namespace PiNodeMonitorWinForm
                 try { 
                     string customPath = NodeUtility.Config.CustomDockerPath;
                     if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath)) {
-                        Process.Start(customPath);
+                        Process.Start(new ProcessStartInfo(customPath) { UseShellExecute = true });
                         return;
                     }
                     string dockerPath = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
-                    if (File.Exists(dockerPath)) Process.Start(dockerPath);
-                    else Process.Start("docker-desktop://"); 
+                    if (File.Exists(dockerPath)) {
+                        Process.Start(new ProcessStartInfo(dockerPath) { UseShellExecute = true });
+                    } else {
+                        Process.Start(new ProcessStartInfo("docker-desktop://") { UseShellExecute = true }); 
+                    }
                 } catch (Exception ex) { 
                     MessageBox.Show($"도커를 실행할 수 없습니다: {ex.Message}", "에러"); 
                 } 
             });
-            menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { try { Process.Start("docker-desktop://"); } catch { } });
+            menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { 
+                try { 
+                    // Protocol attempt 1
+                    Process.Start(new ProcessStartInfo("docker-desktop://dashboard") { UseShellExecute = true }); 
+                } catch { 
+                    try { 
+                        // Protocol attempt 2
+                        Process.Start(new ProcessStartInfo("docker-desktop://") { UseShellExecute = true }); 
+                    } catch {
+                        // Fallback: Run EXE or Activate Window
+                        string dockerPath = NodeUtility.Config.CustomDockerPath;
+                        if (string.IsNullOrEmpty(dockerPath) || !File.Exists(dockerPath)) 
+                            dockerPath = @"C:\Program Files\Docker\Docker\Docker Desktop.exe";
+                        
+                        if (File.Exists(dockerPath)) {
+                            Process.Start(new ProcessStartInfo(dockerPath) { UseShellExecute = true });
+                        } else {
+                            NodeUtility.ActivateProcess("Docker Desktop");
+                        }
+                    }
+                } 
+            });
             menuDocker.DropDownItems.Add("도커 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Docker Desktop"); });
             menuDocker.DropDownItems.Add("도커 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Docker Desktop"); });
             menuDocker.DropDownItems.Add("-"); // Separator
@@ -101,14 +125,20 @@ namespace PiNodeMonitorWinForm
                 try { 
                     string customPath = NodeUtility.Config.CustomPiAppPath;
                     if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath)) {
-                        Process.Start(customPath);
+                        Process.Start(new ProcessStartInfo(customPath) { UseShellExecute = true });
                         return;
                     }
-                    if (File.Exists(repoAppPath)) Process.Start(repoAppPath);
-                    else if (File.Exists(localProgramsDesktopPath)) Process.Start(localProgramsDesktopPath);
-                    else if (File.Exists(localProgramsPath)) Process.Start(localProgramsPath);
-                    else if (File.Exists(localOldPath)) Process.Start(localOldPath);
-                    else MessageBox.Show($"Pi Network 앱을 찾을 수 없습니다.\n확인된 경로:\n1. {repoAppPath}\n2. {localProgramsDesktopPath}\n3. {localProgramsPath}", "경로 안내");
+                    string targetPath = null;
+                    if (File.Exists(repoAppPath)) targetPath = repoAppPath;
+                    else if (File.Exists(localProgramsDesktopPath)) targetPath = localProgramsDesktopPath;
+                    else if (File.Exists(localProgramsPath)) targetPath = localProgramsPath;
+                    else if (File.Exists(localOldPath)) targetPath = localOldPath;
+
+                    if (targetPath != null) {
+                        Process.Start(new ProcessStartInfo(targetPath) { UseShellExecute = true });
+                    } else {
+                        MessageBox.Show($"Pi Network 앱을 찾을 수 없습니다.\n확인된 경로:\n1. {repoAppPath}\n2. {localProgramsDesktopPath}\n3. {localProgramsPath}", "경로 안내");
+                    }
                 } catch (Exception ex) { 
                     MessageBox.Show($"노드 앱을 실행할 수 없습니다: {ex.Message}", "에러"); 
                 } 
