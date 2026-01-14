@@ -315,7 +315,9 @@ namespace PiNodeMonitorWinForm
         {
             try
             {
-                var psi = new ProcessStartInfo("powershell", $"-Command \"(Get-WindowsOptionalFeature -Online -FeatureName {featureName}).State\"")
+                // 1차 시도: PowerShell (Internal Enum Check)
+                // -NoProfile을 사용하여 부팅 속도 향상 및 간섭 최소화
+                var psi = new ProcessStartInfo("powershell", $"-NoProfile -Command \"if((Get-WindowsOptionalFeature -Online -FeatureName {featureName}).State -eq 'Enabled') {{ write-host 'TRUE' }}\"")
                 {
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
@@ -325,9 +327,28 @@ namespace PiNodeMonitorWinForm
                 {
                     if (p != null)
                     {
-                        string output = p.StandardOutput.ReadToEnd();
+                        string output = await p.StandardOutput.ReadToEndAsync();
                         await Task.Run(() => p.WaitForExit());
-                        return output.Trim().Equals("Enabled", StringComparison.OrdinalIgnoreCase);
+                        if (output.Contains("TRUE")) return true;
+                    }
+                }
+
+                // 2차 시도: DISM (Fallback - localization 고려)
+                var dismPsi = new ProcessStartInfo("dism", $"/online /get-featureinfo /featurename:{featureName}")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var p = Process.Start(dismPsi))
+                {
+                    if (p != null)
+                    {
+                        string output = await p.StandardOutput.ReadToEndAsync();
+                        await Task.Run(() => p.WaitForExit());
+                        // 영어(Enabled) 및 한국어(사용) 모두 체크
+                        return output.IndexOf("Enabled", StringComparison.OrdinalIgnoreCase) >= 0 || 
+                               output.IndexOf("사용", StringComparison.OrdinalIgnoreCase) >= 0;
                     }
                 }
             }
