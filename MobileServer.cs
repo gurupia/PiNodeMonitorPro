@@ -409,10 +409,25 @@ namespace PiNodeMonitorWinForm
 
         private static int GetIpScore(string ip)
         {
-            if (ip.StartsWith("192.168.")) return 100;
-            if (ip.StartsWith("10.")) return 90;
-            if (ip.StartsWith("172.")) return 10;
-            return 50;
+            // 1. Check for Private Ranges
+            bool isPrivate = false;
+            if (ip.StartsWith("192.168.")) isPrivate = true;
+            else if (ip.StartsWith("10.")) isPrivate = true;
+            else if (ip.StartsWith("172.")) 
+            {
+                // 172.16.0.0 - 172.31.255.255 is private
+                var parts = ip.Split('.');
+                if (int.TryParse(parts[1], out int second))
+                {
+                    if (second >= 16 && second <= 31) isPrivate = true;
+                }
+            }
+
+            // 2. Scoring Logic
+            if (!isPrivate) return 200;       // Public IP (Modem Direct) - Highest Priority
+            if (ip.StartsWith("192.168.")) return 100; // Standard Home LAN
+            if (ip.StartsWith("10.")) return 90;       // Private Class A
+            return 10;                         // 172.x / Others (Likely Docker/VM)
         }
 
         private static async Task DetectPublicIpAsync()
