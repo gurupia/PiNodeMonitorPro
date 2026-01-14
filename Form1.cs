@@ -65,6 +65,7 @@ namespace PiNodeMonitorWinForm
 
             // --- Docker Menu ---
             ToolStripMenuItem menuDocker = new ToolStripMenuItem("Docker");
+            menuDocker.DropDownItems.Add("도커 실행 (Start)", null, (s, e) => { try { Process.Start("docker-desktop://"); } catch { } });
             menuDocker.DropDownItems.Add("도커 대시보드 열기", null, (s, e) => { try { Process.Start("docker-desktop://"); } catch { } });
             menuDocker.DropDownItems.Add("도커 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Docker Desktop"); });
             menuDocker.DropDownItems.Add("도커 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Docker Desktop"); });
@@ -77,6 +78,15 @@ namespace PiNodeMonitorWinForm
             // --- Pi Node Menu ---
             ToolStripMenuItem menuPiNode = new ToolStripMenuItem("Pi Node");
             string piAppPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Pi Network", "Pi Network.exe");
+            string piAppPathOld = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Pi Network", "Pi Network.exe");
+            
+            menuPiNode.DropDownItems.Add("노드 앱 실행 (Start)", null, (s, e) => { 
+                try { 
+                    if (File.Exists(piAppPath)) Process.Start(piAppPath);
+                    else if (File.Exists(piAppPathOld)) Process.Start(piAppPathOld);
+                    else MessageBox.Show("Pi Network 앱을 찾을 수 없습니다.");
+                } catch { } 
+            });
             menuPiNode.DropDownItems.Add("노드 앱 활성화 (Show)", null, (s, e) => { NodeUtility.ActivateProcess("Pi Network"); });
             menuPiNode.DropDownItems.Add("노드 앱 최소화 (Minimize)", null, (s, e) => { NodeUtility.MinimizeProcess("Pi Network"); });
             menuPiNode.DropDownItems.Add("-");
