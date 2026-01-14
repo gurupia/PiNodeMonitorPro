@@ -29,9 +29,16 @@ namespace PiNodeMonitorWinForm
 
         public static string CurrentIpAddress { get; private set; } = "127.0.0.1";
         public static string PublicIpAddress { get; private set; } = "Unknown";
-        public const int Port = 5000;
+        public static int Port { get; private set; } = 5000;
         public static string CurrentPin { get; private set; } = "0000";
         public static string LastCaptureMode { get; private set; } = "Ready";
+
+        static MobileServer()
+        {
+            // Load port from config
+            var portStr = System.Configuration.ConfigurationManager.AppSettings["MobileServer.Port"];
+            if (int.TryParse(portStr, out int port)) Port = port;
+        }
 
         public static event Action<string> RequestLogged;
         public static event Action<string> PublicIpDetected;

@@ -1,8 +1,27 @@
+# Build outputs
 bin/
 obj/
+Publish/
+*.exe
+
+# Visual Studio
 .vs/
 *.user
 *.suo
-Publish/
-*.exe
+
+# Logs
+*.log
+*.txt
+!README*.txt
+!USER_MANUAL*.txt
+
+# Temporary scripts (generated during debugging)
+fix_*.ps1
+debug_*.ps1
+refactor_*.ps1
+test_*.ps1
+
+# Data files
 *.csv
+stats.json
+nodes_config.json
