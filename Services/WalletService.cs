@@ -28,7 +28,7 @@ namespace PiNodeMonitorWinForm.Services
                     PublicKey = File.ReadAllText(WalletFile).Trim();
                 }
             }
-            catch { PublicKey = ""; }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WalletService] LoadKey error: {ex.Message}"); PublicKey = ""; }
         }
 
         public void SaveKey(string key)
@@ -41,7 +41,7 @@ namespace PiNodeMonitorWinForm.Services
                     File.WriteAllText(WalletFile, PublicKey);
                 }
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WalletService] SaveKey error: {ex.Message}"); }
         }
 
         /// <summary>
@@ -69,9 +69,9 @@ namespace PiNodeMonitorWinForm.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // API call failed or parsing error
+                System.Diagnostics.Debug.WriteLine($"[WalletService] GetBalanceAsync error: {ex.Message}");
             }
             return null;
         }
@@ -84,7 +84,7 @@ namespace PiNodeMonitorWinForm.Services
                 string logLine = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss},+{amount},Total: {newBalance}{Environment.NewLine}";
                 File.AppendAllText("transaction_log.csv", logLine);
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WalletService] LogDeposit error: {ex.Message}"); }
         }
     }
 }

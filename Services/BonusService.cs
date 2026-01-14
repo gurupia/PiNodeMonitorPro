@@ -41,7 +41,7 @@ namespace PiNodeMonitorWinForm.Services
                 string logLine = $"[{DateTime.Now:HH:mm:ss}] {message}\n";
                 File.AppendAllText(_debugLogPath, logLine);
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[BonusService] LogDebug write error: {ex.Message}"); }
         }
 
         public async Task<NodeInfoResult> GetNodeInfoAsync()
@@ -143,7 +143,7 @@ namespace PiNodeMonitorWinForm.Services
                 string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss},{bonus:F4},{availability},{portsOk}\n";
                 File.AppendAllText(_csvPath, line);
             }
-            catch { }
+            catch (Exception ex) { LogDebug($"RecordBonus error: {ex.Message}"); }
         }
     }
 

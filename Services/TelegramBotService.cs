@@ -115,7 +115,7 @@ namespace PiNodeMonitorWinForm.Services
                 string url = string.Format("https://api.telegram.org/bot{0}/sendMessage?chat_id={1}&text={2}&parse_mode=Markdown", _token, chatId, Uri.EscapeDataString(text));
                 await _client.GetAsync(url);
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TelegramBot] SendMessage error: {ex.Message}"); }
         }
 
         public class TelegramUpdateResponse
