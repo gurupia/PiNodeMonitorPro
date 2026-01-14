@@ -89,14 +89,16 @@ namespace PiNodeMonitorWinForm
             string currentDir = AppDomain.CurrentDomain.BaseDirectory;
             string repoAppPath = Path.GetFullPath(Path.Combine(currentDir, @"..\..\..\..\Pi Network.exe"));
             string localProgramsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Pi Network", "Pi Network.exe");
+            string localProgramsDesktopPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "pi-network-desktop", "Pi Network.exe");
             string localOldPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Pi Network", "Pi Network.exe");
             
             menuPiNode.DropDownItems.Add("노드 앱 실행 (Start)", null, (s, e) => { 
                 try { 
                     if (File.Exists(repoAppPath)) Process.Start(repoAppPath);
+                    else if (File.Exists(localProgramsDesktopPath)) Process.Start(localProgramsDesktopPath);
                     else if (File.Exists(localProgramsPath)) Process.Start(localProgramsPath);
                     else if (File.Exists(localOldPath)) Process.Start(localOldPath);
-                    else MessageBox.Show($"Pi Network 앱을 찾을 수 없습니다.\n확인된 경로:\n1. {repoAppPath}\n2. {localProgramsPath}", "경로 안내");
+                    else MessageBox.Show($"Pi Network 앱을 찾을 수 없습니다.\n확인된 경로:\n1. {repoAppPath}\n2. {localProgramsDesktopPath}\n3. {localProgramsPath}", "경로 안내");
                 } catch (Exception ex) { 
                     MessageBox.Show($"노드 앱을 실행할 수 없습니다: {ex.Message}", "에러"); 
                 } 
