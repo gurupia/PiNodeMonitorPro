@@ -1,0 +1,10 @@
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\MultiMonitorForm.cs(6,19): error CS0234: 'System.Text' 네임스페이스에 'Json' 형식 또는 네임스페이스 이름이 없습니다. 어셈블리 참조가 있는지 확인하세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\Services\ExternalTools\ExternalToolService.cs(5,19): error CS0234: 'System.Text' 네임스페이스에 'Json' 형식 또는 네임스페이스 이름이 없습니다. 어셈블리 참조가 있는지 확인하세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\Services\Sms\SmsService.cs(4,19): error CS0234: 'System.Text' 네임스페이스에 'Json' 형식 또는 네임스페이스 이름이 없습니다. 어셈블리 참조가 있는지 확인하세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\Services\Sms\SolapiSmsProvider.cs(7,19): error CS0234: 'System.Text' 네임스페이스에 'Json' 형식 또는 네임스페이스 이름이 없습니다. 어셈블리 참조가 있는지 확인하세요. [F:\repos\CSharp\PiDesktop_054\pi-network-desktop\resources\app.asar-repack\PiNodeMonitorWinForm\PiNodeMonitorWinForm.csproj]
+
+빌드하지 못했습니다.
+    경고 1개
+    오류 4개
+
+경과 시간: 00:00:01.24

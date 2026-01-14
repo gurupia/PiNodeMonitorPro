@@ -39,6 +39,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; Source file path relative to this .iss file
 Source: "{#SourceDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\GurupiaCapture.Core.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Add other helper files here if needed (e.g. config files, readme)
 
 [Icons]

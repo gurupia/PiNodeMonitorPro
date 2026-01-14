@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Net.Http;
-using System.Text.Json;
+using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PiNodeMonitorWinForm.Services.ExternalTools; // Added
@@ -207,7 +207,7 @@ namespace PiNodeMonitorWinForm
                     $"http://{node.IpAddress}/api/status?pin={node.Pin}";
 
                 var response = await _httpClient.GetStringAsync(url);
-                var status = JsonSerializer.Deserialize<NodeStatusData>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var status = JsonConvert.DeserializeObject<NodeStatusData>(response);
 
                 if (this.IsDisposed || !this.IsHandleCreated) return;
 
@@ -253,7 +253,7 @@ namespace PiNodeMonitorWinForm
                 try
                 {
                     string json = File.ReadAllText(CONFIG_FILE);
-                    _nodes = JsonSerializer.Deserialize<List<RemoteNodeConfig>>(json) ?? new List<RemoteNodeConfig>();
+                    _nodes = JsonConvert.DeserializeObject<List<RemoteNodeConfig>>(json) ?? new List<RemoteNodeConfig>();
                     foreach (var n in _nodes) AddGridRow(n);
                 }
                 catch { }
@@ -264,7 +264,7 @@ namespace PiNodeMonitorWinForm
         {
             try
             {
-                string json = JsonSerializer.Serialize(_nodes, new JsonSerializerOptions { WriteIndented = true });
+                string json = JsonConvert.SerializeObject(_nodes, Formatting.Indented);
                 File.WriteAllText(CONFIG_FILE, json);
             }
             catch { }
@@ -302,7 +302,12 @@ namespace PiNodeMonitorWinForm
                     foreach (var tool in tools)
                     {
                         var item = new ToolStripMenuItem($"🚀 Open with {tool.Name}");
-                        item.Click += (s, ev) => svc.LaunchTool(tool, node.IpAddress);
+                        item.Click += (s, ev) => {
+                            string[] parts = node.IpAddress.Split(':');
+                            string ip = parts[0];
+                            int port = parts.Length > 1 && int.TryParse(parts[1], out int p) ? p : 5000;
+                            svc.LaunchTool(tool.Name, ip, port);
+                        };
                         mnu.Items.Add(item);
                     }
 

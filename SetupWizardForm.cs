@@ -15,6 +15,7 @@ namespace PiNodeMonitorWinForm
         private Button btnAction;
         private Button btnNext;
         private Button btnManual;
+        private Button btnSkip;
         private ProgressBar progressBar;
 
         public SetupWizardForm()
@@ -87,12 +88,22 @@ namespace PiNodeMonitorWinForm
             this.btnManual.Visible = false;
             this.btnManual.Click += BtnManual_Click;
 
+            // Skip Button
+            this.btnSkip = new Button();
+            this.btnSkip.Location = new Point(180, 260); // Shares position with btnManual (only one shown usually)
+            this.btnSkip.Size = new Size(140, 40);
+            this.btnSkip.Text = "Skip this step";
+            this.btnSkip.ForeColor = Color.DarkGray;
+            this.btnSkip.Visible = false;
+            this.btnSkip.Click += BtnSkip_Click;
+
             this.Controls.Add(lblTitle);
             this.Controls.Add(progressBar);
             this.Controls.Add(lblStatus);
             this.Controls.Add(lblInstruction);
             this.Controls.Add(btnAction);
             this.Controls.Add(btnManual);
+            this.Controls.Add(btnSkip);
             this.Controls.Add(btnNext);
             
             this.ResumeLayout(false);
@@ -107,6 +118,7 @@ namespace PiNodeMonitorWinForm
             btnNext.Enabled = false;
             btnAction.Visible = false;
             btnManual.Visible = false;
+            btnSkip.Visible = false;
             lblStatus.ForeColor = Color.Gray;
 
             switch (step)
@@ -175,6 +187,7 @@ namespace PiNodeMonitorWinForm
                 btnNext.Text = "Check Again";
                 btnAction.Text = actionLabel;
                 btnAction.Visible = true;
+                btnSkip.Visible = true; // Show Skip button when a check fails
             }
         }
 
@@ -211,6 +224,17 @@ namespace PiNodeMonitorWinForm
             {
                 MessageBox.Show("The condition is not met yet. Please try the Fix button or check manually.", "Check Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 LoadStep(_currentStep); // Reload to reset UI
+            }
+        }
+
+        private void BtnSkip_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("Are you sure you want to skip this step?\nThe application might not work correctly if requirements are not met.", 
+                                         "Skip Step", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            
+            if (result == DialogResult.Yes)
+            {
+                LoadStep(_currentStep + 1);
             }
         }
 

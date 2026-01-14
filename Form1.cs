@@ -1,12 +1,16 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Text.Json.Nodes;
+using Newtonsoft.Json.Linq;
 using PiNodeMonitorWinForm.Services;
 using PiNodeMonitorWinForm.Services.Sms;
 
@@ -20,12 +24,11 @@ namespace PiNodeMonitorWinForm
         private int _statOut = 0;
         private string _statLocalBlock = "0";
         private int _statLedgerAge = 0;
-        private bool _wasSynced = false;
         private int _totalSeconds = 0;
         private int _totalSyncedSeconds = 0;
 
         // Timer
-        private readonly HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        private readonly HttpClient client = new HttpClient();
         private Button btnMobile; 
 
         // Wallet Controls
@@ -39,14 +42,21 @@ namespace PiNodeMonitorWinForm
         private TelegramBotService _botService;
         private NotifyIcon notifyIcon;
         private decimal _lastBalance = -1; 
+        private BonusService _bonusService;
+        private double _currentBonus = 0;
+        private int _bonusUpdateCounter = 0;
         
         public Form1()
         {
             InitializeComponent();
+            client.Timeout = TimeSpan.FromSeconds(3);
             this.Height += 120; // Increased height for Wallet UI + Footer
             this.Width += 60;   // Increased width for SMS Button
             this.Text = "Pi Node Monitor Pro (Fixed v2)";
+            lblLocalCpuCount.Text = $"{Environment.ProcessorCount} Threads";
             
+            // Initialize Services
+            _bonusService = new BonusService("387f2aaa-2883-443f-b69c-fe6a77647b1f");
             try 
             { 
                 var assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -56,6 +66,17 @@ namespace PiNodeMonitorWinForm
                 }
             } 
             catch { }
+ 
+            // Detect Real UUID and update BonusService
+            Task.Run(async () => {
+                string realUuid = await NodeUtility.GetNodeUuidAsync();
+                if (!string.IsNullOrEmpty(realUuid))
+                {
+                    _bonusService.SetUuid(realUuid);
+                    _bonusUpdateCounter = 0; // Trigger immediate update on next tick
+                    System.Diagnostics.Debug.WriteLine($"Real UUID Detected: {realUuid}");
+                }
+            });
 
             // Initialize Notification
             notifyIcon = new NotifyIcon();
@@ -74,40 +95,46 @@ namespace PiNodeMonitorWinForm
             InitializeBot();
 
             // ---------------------------------------------------------
-            // Wallet UI Implementation (Clean Dashboard Mode)
             // ---------------------------------------------------------
-            int baseY = this.ClientSize.Height - 160; 
+            // Wallet & Footer UI (FlowLayout Integration)
+            // ---------------------------------------------------------
             
+            // 1. Wallet Status Label
             lblBalance = new Label();
             lblBalance.Text = "Wallet: -- π";
             lblBalance.Font = new Font("Segoe UI", 10, FontStyle.Bold);
             lblBalance.ForeColor = Color.Gold;
             lblBalance.BackColor = Color.Transparent;
             lblBalance.AutoSize = true;
-            lblBalance.Location = new Point(20, baseY);
-            this.Controls.Add(lblBalance);
+            lblBalance.Margin = new Padding(0, 20, 0, 5);
+            mainFlow.Controls.Add(lblBalance);
+
+            // 2. Wallet Input Row (Horizontal Flow)
+            FlowLayoutPanel walletFlow = new FlowLayoutPanel();
+            walletFlow.FlowDirection = FlowDirection.LeftToRight;
+            walletFlow.AutoSize = true;
+            walletFlow.Margin = new Padding(0, 0, 0, 10);
+            walletFlow.WrapContents = false;
 
             txtPublicKey = new TextBox();
-            txtPublicKey.PlaceholderText = "Paste Public Key (G...)";
-            txtPublicKey.Size = new Size(420, 25); // Widened to 420px
-            txtPublicKey.Location = new Point(20, baseY + 25);
+            // txtInput = new TextBox { Width = 200 }; // Not declared
+            // txtPublicKey.PlaceholderText = "Paste Public Key (G...)"; // Not supported in net48
+            txtPublicKey.Size = new Size(390, 25);
             txtPublicKey.BackColor = Color.FromArgb(40, 40, 40);
             txtPublicKey.ForeColor = Color.White;
             txtPublicKey.BorderStyle = BorderStyle.FixedSingle;
-            this.Controls.Add(txtPublicKey);
+            walletFlow.Controls.Add(txtPublicKey);
 
             btnSaveKey = new Button();
             btnSaveKey.Text = "💾";
-            btnSaveKey.Size = new Size(30, 25);
-            btnSaveKey.Location = new Point(450, baseY + 25); // Adjusted X to 450
+            btnSaveKey.Size = new Size(35, 25);
             btnSaveKey.FlatStyle = FlatStyle.Flat;
             btnSaveKey.ForeColor = Color.White;
-            this.Controls.Add(btnSaveKey);
+            walletFlow.Controls.Add(btnSaveKey);
 
             var btnSmsConfig = new Button();
-            btnSmsConfig.Text = "💬"; // SMS Settings Icon
-            btnSmsConfig.Size = new Size(30, 25);
-            btnSmsConfig.Location = new Point(490, baseY + 25);
+            btnSmsConfig.Text = "💬";
+            btnSmsConfig.Size = new Size(35, 25);
             btnSmsConfig.FlatStyle = FlatStyle.Flat;
             btnSmsConfig.ForeColor = Color.LightSkyBlue;
             btnSmsConfig.Cursor = Cursors.Hand;
@@ -119,122 +146,82 @@ namespace PiNodeMonitorWinForm
                     }
                 }
             };
-            this.Controls.Add(btnSmsConfig);
+            walletFlow.Controls.Add(btnSmsConfig);
 
             btnChangeWallet = new Button();
             btnChangeWallet.Text = "Change Address";
             btnChangeWallet.Size = new Size(120, 25);
-            btnChangeWallet.Location = new Point(20, baseY + 25);
             btnChangeWallet.FlatStyle = FlatStyle.Flat;
             btnChangeWallet.ForeColor = Color.Gray; 
             btnChangeWallet.Cursor = Cursors.Hand;
-            this.Controls.Add(btnChangeWallet);
+            walletFlow.Controls.Add(btnChangeWallet);
 
-            // Service Init
-            _walletService = new WalletService();
+            mainFlow.Controls.Add(walletFlow);
 
-            // Toggle Logic
+            // 3. Multi-View & Mobile Connect Row (Horizontal Flow)
+            FlowLayoutPanel buttonFlow = new FlowLayoutPanel();
+            buttonFlow.FlowDirection = FlowDirection.LeftToRight;
+            buttonFlow.Size = new Size(470, 50);
+            buttonFlow.Margin = new Padding(0, 10, 0, 10);
+            buttonFlow.FlowDirection = FlowDirection.RightToLeft;
+
+            btnMobile = new Button();
+            btnMobile.Text = "📱 Mobile Connect";
+            btnMobile.Size = new Size(130, 40);
+            btnMobile.BackColor = Color.BlueViolet;
+            btnMobile.ForeColor = Color.White;
+            btnMobile.FlatStyle = FlatStyle.Flat;
+            btnMobile.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            btnMobile.Click += (s, e) => {
+                try {
+                    using (var qr = new QRForm($"http://{MobileServer.CurrentIpAddress}:{MobileServer.Port}")) {
+                        qr.ShowDialog(this);
+                    }
+                } catch (Exception ex) { MessageBox.Show(ex.Message); }
+            };
+            buttonFlow.Controls.Add(btnMobile);
+
+            Button btnMulti = new Button();
+            btnMulti.Text = "🖥️ Multi-View";
+            btnMulti.Size = new Size(130, 40);
+            btnMulti.BackColor = Color.Teal;
+            btnMulti.ForeColor = Color.White;
+            btnMulti.FlatStyle = FlatStyle.Flat;
+            btnMulti.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            btnMulti.Click += (s, e) => { new MultiMonitorForm().Show(); };
+            buttonFlow.Controls.Add(btnMulti);
+
+            mainFlow.Controls.Add(buttonFlow);
+
+            // Rest of Toggle Logic
             Action<bool> ToggleWalletEdit = (editing) => {
                 txtPublicKey.Visible = editing;
                 btnSaveKey.Visible = editing;
                 btnChangeWallet.Visible = !editing;
                 if (editing) txtPublicKey.Focus();
             };
-
             btnChangeWallet.Click += (s, e) => ToggleWalletEdit(true);
-
             btnSaveKey.Click += (s, e) => {
                 _walletService.SaveKey(txtPublicKey.Text);
                 MessageBox.Show("Wallet Key Saved!");
                 UpdateWalletBalanceAsync(); 
                 ToggleWalletEdit(false);
             };
-
-            // Load saved key state
             if (!string.IsNullOrEmpty(_walletService.PublicKey)) {
                 txtPublicKey.Text = _walletService.PublicKey;
                 ToggleWalletEdit(false); 
-            } else {
-                ToggleWalletEdit(true); 
-            }
-            // ---------------------------------------------------------
-            // Multi-Monitor Button
-            // ---------------------------------------------------------
-            Button btnMulti = new Button();
-            btnMulti.Text = "🖥️ Multi-View";
-            btnMulti.Size = new Size(140, 40);
-            btnMulti.Location = new Point(this.ClientSize.Width - 305, this.ClientSize.Height - 100); 
-            btnMulti.BackColor = Color.Teal;
-            btnMulti.ForeColor = Color.White;
-            btnMulti.FlatStyle = FlatStyle.Flat;
-            btnMulti.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            btnMulti.Click += (s, e) => { new MultiMonitorForm().Show(); };
-            this.Controls.Add(btnMulti);
+            } else { ToggleWalletEdit(true); }
 
-            // ---------------------------------------------------------
-            // Mobile Connect Button
-            // ---------------------------------------------------------
-            btnMobile = new Button();
-            btnMobile.Text = "📱 Mobile Connect";
-            btnMobile.Size = new Size(140, 40);
-            // Position above Footer (35px) with padding
-            btnMobile.Location = new Point(this.ClientSize.Width - 155, this.ClientSize.Height - 100); 
-            btnMobile.BackColor = Color.RebeccaPurple;
-            btnMobile.ForeColor = Color.White;
-            btnMobile.FlatStyle = FlatStyle.Flat;
-            btnMobile.FlatAppearance.BorderSize = 0;
-            btnMobile.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            btnMobile.Cursor = Cursors.Hand;
-            btnMobile.Click += (s, e) => {
-                try {
-                    using (var qr = new QRForm($"http://{MobileServer.CurrentIpAddress}:{MobileServer.Port}")) {
-                        qr.ShowDialog(this);
-                    }
-                } catch (Exception ex) {
-                    MessageBox.Show(ex.Message);
-                }
-            };
-            this.Controls.Add(btnMobile);
-            btnMobile.BringToFront();
-
-            // ---------------------------------------------------------
-            // Dark Footer Implementation
-            // ---------------------------------------------------------
-            Panel pnlFooter = new Panel();
-            pnlFooter.Dock = DockStyle.Bottom;
-            pnlFooter.Height = 35; // Slightly taller for better spacing
-            pnlFooter.BackColor = Color.FromArgb(32, 32, 32); // Deep Dark Grey
-
-            Label lblCopy = new Label();
-            lblCopy.Text = "Copyright © 2025 GuruPia. All rights reserved.";
-            lblCopy.ForeColor = Color.LightGray;
-            lblCopy.Font = new Font("Segoe UI", 9);
-            lblCopy.AutoSize = true;
-            lblCopy.Location = new Point(10, 8); // Manual positioning or Dock Left with padding
-            
-            LinkLabel lnkDev = new LinkLabel();
-            lnkDev.Text = "Developed by gurupia.github.io";
-            lnkDev.LinkColor = Color.Gold; // Gold stands out well on dark
-            lnkDev.ActiveLinkColor = Color.Yellow;
-            lnkDev.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            lnkDev.AutoSize = true;
-            lnkDev.Cursor = Cursors.Hand;
-            lnkDev.LinkClicked += (s, e) => {
-                try { 
-                    Process.Start(new ProcessStartInfo { FileName = "https://gurupia.github.io", UseShellExecute = true }); 
-                } catch {}
-            };
-            
-            // Add to panel (Right align link manually or use Dock)
+            // 4. Dark Footer (External to Flow)
+            Panel pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 35, BackColor = Color.FromArgb(32, 32, 32) };
+            Label lblCopy = new Label { Text = "Copyright © 2025 GuruPia. All rights reserved.", ForeColor = Color.LightGray, Font = new Font("Segoe UI", 9), AutoSize = true, Location = new Point(10, 8) };
+            LinkLabel lnkDev = new LinkLabel { Text = "Developed by gurupia.github.io", LinkColor = Color.Gold, Font = new Font("Segoe UI", 9, FontStyle.Bold), AutoSize = true, Cursor = Cursors.Hand };
+            lnkDev.LinkClicked += (s, e) => { try { Process.Start(new ProcessStartInfo { FileName = "https://gurupia.github.io", UseShellExecute = true }); } catch {} };
             pnlFooter.Controls.Add(lblCopy);
             pnlFooter.Controls.Add(lnkDev);
-            
-            // Layout logic for right alignment since Dock=Right can be tricky with AutoSize labels
-            pnlFooter.Resize += (s, e) => {
-                lnkDev.Location = new Point(pnlFooter.Width - lnkDev.Width - 15, 8);
-            };
-
             this.Controls.Add(pnlFooter);
+            pnlFooter.Resize += (s, e) => { lnkDev.Location = new Point(pnlFooter.Width - lnkDev.Width - 15, 8); };
+            pnlFooter.BringToFront();
             pnlFooter.BringToFront(); // Ensure it sits on top of everything at bottom
             
             // Initial positioning trigger
@@ -308,11 +295,11 @@ namespace PiNodeMonitorWinForm
                     _ = _smsService.SendAlertAsync(diff, dBal);
                     
                     if (notifyIcon != null)
-                        notifyIcon.ShowBalloonTip(7000, "💰 Deposit Detected!", $"+{diff:0.#####} π Received!\nTotal: {dBal:N2} π", ToolTipIcon.Info);
+                        notifyIcon.ShowBalloonTip(7000, "?뮥 Deposit Detected!", $"+{diff:0.#####} ? Received!\nTotal: {dBal:N2} ?", ToolTipIcon.Info);
                 }
 
                 _lastBalance = dBal;
-                if (lblBalance != null) lblBalance.Text = $"Wallet: {dBal:N2} π";
+                if (lblBalance != null) lblBalance.Text = $"Wallet: {dBal:N2} ?";
             }
         }
 
@@ -364,6 +351,7 @@ namespace PiNodeMonitorWinForm
                 if (foundRunning)
                 {
                     btnToggleNode.Text = "Node is ON (Click to OFF)";
+                    btnToggleNode.ForeColor = Color.Green;
                     btnToggleNode.BackColor = Color.LightGreen;
                     
                     // Fetch Stats (CPU/RAM)
@@ -378,7 +366,7 @@ namespace PiNodeMonitorWinForm
                      }
                     
                     lblContainerStatus.Text = $"Active: {activeContainer}";
-                    lblContainerStatus.ForeColor = Color.Blue;
+                    lblContainerStatus.ForeColor = Color.Yellow;
                 }
                 else
                 {
@@ -412,8 +400,9 @@ namespace PiNodeMonitorWinForm
 
                 try 
                 {
-                    using var ctsMetric = new System.Threading.CancellationTokenSource(1500);
-                    string metrics = await client.GetStringAsync("http://localhost:31403/metrics", ctsMetric.Token);
+                    using (var ctsMetric = new CancellationTokenSource(1500))
+                    {
+                        string metrics = await client.GetStringAsync("http://localhost:31403/metrics");
                     
                     int mOut = ParseMetricValue(metrics, "stellar_node_peers_connected_outbound");
                     int mIn = ParseMetricValue(metrics, "stellar_node_peers_connected_inbound");
@@ -456,7 +445,8 @@ namespace PiNodeMonitorWinForm
                         metricsSuccess = true;
                     }
                 }
-                catch { }
+            }
+            catch { }
 
                 // Fallback to Info API ... (Logic continues)
 
@@ -507,9 +497,9 @@ namespace PiNodeMonitorWinForm
                 _statState = state;
                 
                 // Update Status Labels
-                if (state == "Synced!")
+                if (state == "Synced!" || state == "Synced (Docker)")
                 {
-                    lblMainStatus.Text = "Your computer is running the blockchain";
+                    lblMainStatus.Text = (state == "Synced!") ? "Your computer is running the blockchain" : state;
                     lblMainStatus.ForeColor = Color.Green;
                     _totalSyncedSeconds += 3;
                 }
@@ -520,11 +510,9 @@ namespace PiNodeMonitorWinForm
                 }
                 
                 lblLocalBlockNum.Text = _statLocalBlock;
-                
-                // Note: Designer names might differ slightly, checking Designer file
-                // Designer: lblLatestBlock (not lblLatestBlockNum?), lblLedgerAge
-                // Let's use names from Designer file.
-                if (lblLatestBlock != null) lblLatestBlock.Text = _statLocalBlock; // Reusing local block for latest
+                if (lblRemoteBlockNum != null) lblRemoteBlockNum.Text = _statLocalBlock;
+                if (lblState != null) lblState.Text = _statState;
+                if (lblLatestBlock != null) lblLatestBlock.Text = _statLocalBlock;
                 if (lblLedgerAge != null) lblLedgerAge.Text = $"{_statLedgerAge} sec"; 
                 if (lblProtocolVersion != null) lblProtocolVersion.Text = "Latest"; 
                 if (lblStellarBuild != null) lblStellarBuild.Text = "stellar-core";
@@ -560,6 +548,35 @@ namespace PiNodeMonitorWinForm
                 double avail = _totalSeconds > 0 ? (double)_totalSyncedSeconds / _totalSeconds * 100.0 : 0;
                 lblAvailability.Text = $"Availability: {avail:F2}%";
 
+                // Update Bonus (Periodic Check)
+                if (_bonusUpdateCounter <= 0)
+                {
+                    _bonusService.LogDebug("UpdateDashboardAsync: Fetching bonus data...");
+                    var nodeInfo = await _bonusService.GetNodeInfoAsync();
+                    _currentBonus = nodeInfo.Bonus;
+                    _bonusService.LogDebug($"UpdateDashboardAsync: Fetched Bonus = {_currentBonus}");
+
+                    if (_currentBonus >= 0)
+                    {
+                        lblBonus.Text = $"Bonus: {_currentBonus:F4}";
+                        if (nodeInfo.CpuCount > 0)
+                        {
+                            lblServerCpuCount.Text = $"{nodeInfo.CpuCount} Cores";
+                        }
+                        else
+                        {
+                            lblServerCpuCount.Text = "N/A (Pending)";
+                        }
+                        _bonusService.LogDebug($"UI Updated: Bonus={_currentBonus}, CPU={nodeInfo.CpuCount}");
+                        
+                        // Record to CSV
+                        bool portsOk = lblPort01.Text == "Listening" && lblPort03.Text == "Listening";
+                        _bonusService.RecordBonus(_currentBonus, avail.ToString("F2"), portsOk);
+                    }
+                    _bonusUpdateCounter = 12; // Every 1 minute
+                }
+                _bonusUpdateCounter--;
+
                 // Sync to Mobile
                 MobileServer.CurrentStatus = new NodeStatusData
                 {
@@ -569,7 +586,8 @@ namespace PiNodeMonitorWinForm
                     LocalBlock = _statLocalBlock,
                     ProtocolVersion = lblProtocolVersion?.Text ?? "Unknown",
                     LedgerAge = _statLedgerAge,
-                    Uptime = lblUptime.Text.Replace("Uptime: ", "")
+                    Uptime = lblUptime.Text.Replace("Uptime: ", ""),
+                    NodeBonus = _currentBonus
                 };
                 
                 // StatusStrip update
@@ -596,6 +614,23 @@ namespace PiNodeMonitorWinForm
                 // Only send if enabled in Settings
                 if (_smsService.IsNodeAlertEnabled)
                      _ = _smsService.SendAlertAsync(alertMsg);
+            }
+        }
+
+        private void btnShowHistory_Click(object sender, EventArgs e)
+        {
+            string csvPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Bonus_History.csv");
+            using (var historyForm = new HistoryForm(csvPath))
+            {
+                historyForm.ShowDialog();
+            }
+        }
+
+        private void btnHelp_Click(object sender, EventArgs e)
+        {
+            using (var helpForm = new HelpForm())
+            {
+                helpForm.ShowDialog();
             }
         }
 
@@ -635,13 +670,13 @@ namespace PiNodeMonitorWinForm
 
         private string Bot_OnStatusRequested()
         {
-            return $"📊 **Node Status Report**\n\n" +
-                   $"🌍 **State**: {_statState}\n" +
-                   $"📦 **Block**: {_statLocalBlock}\n" +
-                   $"🔗 **Peers**: In {_statIn} / Out {_statOut}\n" +
-                   $"💰 **Balance**: {_lastBalance:N2} Pi\n" +
-                   $"⏳ **Uptime**: {lblUptime.Text.Replace("Uptime: ", "")}\n" +
-                   $"📅 **Time**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+            return $"?뱤 **Node Status Report**\n\n" +
+                   $"?뙇 **State**: {_statState}\n" +
+                   $"?벀 **Block**: {_statLocalBlock}\n" +
+                   $"?뵕 **Peers**: In {_statIn} / Out {_statOut}\n" +
+                   $"?뮥 **Balance**: {_lastBalance:N2} Pi\n" +
+                   $"??**Uptime**: {lblUptime.Text.Replace("Uptime: ", "")}\n" +
+                   $"?뱟 **Time**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
         }
 
         private void Bot_OnRestartRequested()
@@ -658,16 +693,15 @@ namespace PiNodeMonitorWinForm
 
         private async Task<bool> CheckPortOpenAsync(int port)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 try
                 {
-                    using var client = new System.Net.Sockets.TcpClient();
-                    var result = client.BeginConnect("127.0.0.1", port, null, null);
-                    var success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromMilliseconds(500));
-                    if (!success) return false;
-                    client.EndConnect(result);
-                    return true;
+                    using (var client = new System.Net.Sockets.TcpClient())
+                    {
+                        await client.ConnectAsync("127.0.0.1", port);
+                        return true;
+                    }
                 }
                 catch { return false; }
             });
@@ -675,7 +709,7 @@ namespace PiNodeMonitorWinForm
 
         private async Task<string?> RunDockerCommandAsync(string arguments)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 try
                 {
@@ -688,11 +722,13 @@ namespace PiNodeMonitorWinForm
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
-                    using var process = Process.Start(psi);
-                    if (process == null) return null;
-                    string output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit(3000);
-                    return output;
+                    using (var process = Process.Start(psi))
+                    {
+                        if (process == null) return null;
+                        string output = await process.StandardOutput.ReadToEndAsync();
+                        await Task.Run(() => process.WaitForExit(3000)); 
+                        return output;
+                    }
                 }
                 catch { return null; }
             });
@@ -702,7 +738,7 @@ namespace PiNodeMonitorWinForm
         {
             try
             {
-                var lines = data.Split('\n');
+                var lines = data.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
                     string trimmed = line.Trim();
@@ -720,7 +756,7 @@ namespace PiNodeMonitorWinForm
 
                         if (isExactMatch)
                         {
-                            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            var parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                             if (parts.Length >= 2 && int.TryParse(parts.Last(), out int val))
                             {
                                 return val;

@@ -1,4 +1,8 @@
-﻿namespace PiNodeMonitorWinForm
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace PiNodeMonitorWinForm
 {
     partial class Form1
     {
@@ -30,540 +34,717 @@
         {
             this.components = new System.ComponentModel.Container();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.lblStellarBuild = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
-            this.lblProtocolVersion = new System.Windows.Forms.Label();
-            this.label1 = new System.Windows.Forms.Label();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.lblLedgerAge = new System.Windows.Forms.Label();
-            this.label9 = new System.Windows.Forms.Label();
-            this.lblState = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
-            this.lblLatestBlock = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
-            this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.lblSupporting = new System.Windows.Forms.Label();
-            this.label6 = new System.Windows.Forms.Label();
-            this.lblOutgoing = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
-            this.lblIncoming = new System.Windows.Forms.Label();
-            this.label4 = new System.Windows.Forms.Label();
-            this.lblLastUpdated = new System.Windows.Forms.Label();
-            this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
-            this.lblRAM = new System.Windows.Forms.Label();
-            this.label10 = new System.Windows.Forms.Label();
-            this.lblCPU = new System.Windows.Forms.Label();
-            this.label8 = new System.Windows.Forms.Label();
-            this.lblContainerStatus = new System.Windows.Forms.Label();
-            this.label11 = new System.Windows.Forms.Label();
-            this.groupBox5 = new System.Windows.Forms.GroupBox();
-            this.lblPort03 = new System.Windows.Forms.Label();
-            this.label14 = new System.Windows.Forms.Label();
-            this.lblPort02 = new System.Windows.Forms.Label();
-            this.label13 = new System.Windows.Forms.Label();
-            this.lblPort01 = new System.Windows.Forms.Label();
-            this.label12 = new System.Windows.Forms.Label();
-            this.groupBox6 = new System.Windows.Forms.GroupBox();
-            this.lblAvailability = new System.Windows.Forms.Label();
-            this.lblUptime = new System.Windows.Forms.Label();
-            this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
-            this.groupBoxControl = new System.Windows.Forms.GroupBox();
-            this.btnToggleNode = new System.Windows.Forms.Button();
-            this.lblMainStatus = new System.Windows.Forms.Label();
-            this.lblLocalBlockLabel = new System.Windows.Forms.Label();
-            this.lblLocalBlockNum = new System.Windows.Forms.Label();
-            this.lblRemoteBlockLabel = new System.Windows.Forms.Label();
-            this.lblRemoteBlockNum = new System.Windows.Forms.Label();
-            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.statusStrip1 = new System.Windows.Forms.StatusStrip();
-            this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
-
-            // --- Missing Properties Initialization ---
-            // GroupBox 4 Items
-            this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(10, 25);
-            this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(42, 15);
-            this.label11.Text = "Name:";
-            
-            this.lblContainerStatus.AutoSize = true;
-            this.lblContainerStatus.Location = new System.Drawing.Point(70, 25);
-            this.lblContainerStatus.Name = "lblContainerStatus";
-            this.lblContainerStatus.Size = new System.Drawing.Size(59, 15);
-            this.lblContainerStatus.Text = "Checking...";
-
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(10, 50);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(33, 15);
-            this.label8.Text = "CPU:";
-
-            this.lblCPU.AutoSize = true;
-            this.lblCPU.Location = new System.Drawing.Point(70, 50);
-            this.lblCPU.Name = "lblCPU";
-            this.lblCPU.Size = new System.Drawing.Size(16, 15);
-            this.lblCPU.Text = "...";
-
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(10, 75);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(36, 15);
-            this.label10.Text = "RAM:";
-
-            this.lblRAM.AutoSize = true;
-            this.lblRAM.Location = new System.Drawing.Point(70, 75);
-            this.lblRAM.Name = "lblRAM";
-            this.lblRAM.Size = new System.Drawing.Size(16, 15);
-            this.lblRAM.Text = "...";
-
-            // GroupBox 5 Items
-            this.label12.AutoSize = true;
-            this.label12.Location = new System.Drawing.Point(20, 25);
-            this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(41, 15);
-            this.label12.Text = "31401:";
-
-            this.lblPort01.AutoSize = true;
-            this.lblPort01.Location = new System.Drawing.Point(80, 25);
-            this.lblPort01.Name = "lblPort01";
-            this.lblPort01.Size = new System.Drawing.Size(54, 15);
-            this.lblPort01.Text = "Checking";
-
-            this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(170, 25);
-            this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(41, 15);
-            this.label13.Text = "31402:";
-
-            this.lblPort02.AutoSize = true;
-            this.lblPort02.Location = new System.Drawing.Point(230, 25);
-            this.lblPort02.Name = "lblPort02";
-            this.lblPort02.Size = new System.Drawing.Size(54, 15);
-            this.lblPort02.Text = "Checking";
-
-            this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(320, 25);
-            this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(41, 15);
-            this.label14.Text = "31403:";
-
-            this.lblPort03.AutoSize = true;
-            this.lblPort03.Location = new System.Drawing.Point(380, 25);
-            this.lblPort03.Name = "lblPort03";
-            this.lblPort03.Size = new System.Drawing.Size(54, 15);
-            this.lblPort03.Text = "Checking";
-
-            // GroupBox 6 Items
-            this.lblUptime.AutoSize = true;
-            this.lblUptime.Location = new System.Drawing.Point(20, 25);
-            this.lblUptime.Name = "lblUptime";
-            this.lblUptime.Size = new System.Drawing.Size(117, 15);
-            this.lblUptime.Text = "Uptime: 00:00:00";
-
-            this.lblAvailability.AutoSize = true;
-            this.lblAvailability.Location = new System.Drawing.Point(240, 25);
-            this.lblAvailability.Name = "lblAvailability";
-            this.lblAvailability.Size = new System.Drawing.Size(107, 15);
-            this.lblAvailability.Text = "Availability: 0.0%";
-            
-            this.groupBox1.SuspendLayout();
-            this.groupBox2.SuspendLayout();
-            this.groupBox3.SuspendLayout();
-            this.groupBox4.SuspendLayout();
-            this.groupBox5.SuspendLayout();
-            this.groupBox6.SuspendLayout();
-            this.groupBoxControl.SuspendLayout();
-            this.SuspendLayout();
-            
+            lblLocalCpuCount = new System.Windows.Forms.Label();
+            labelLocalCpu = new System.Windows.Forms.Label();
+            lblServerCpuCount = new System.Windows.Forms.Label();
+            labelServerCpu = new System.Windows.Forms.Label();
+            lblStellarBuild = new System.Windows.Forms.Label();
+            label7 = new System.Windows.Forms.Label();
+            lblProtocolVersion = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
+            groupBox2 = new System.Windows.Forms.GroupBox();
+            lblLedgerAge = new System.Windows.Forms.Label();
+            label9 = new System.Windows.Forms.Label();
+            lblState = new System.Windows.Forms.Label();
+            label3 = new System.Windows.Forms.Label();
+            lblLatestBlock = new System.Windows.Forms.Label();
+            label2 = new System.Windows.Forms.Label();
+            groupBox3 = new System.Windows.Forms.GroupBox();
+            lblSupporting = new System.Windows.Forms.Label();
+            label6 = new System.Windows.Forms.Label();
+            lblOutgoing = new System.Windows.Forms.Label();
+            label5 = new System.Windows.Forms.Label();
+            lblIncoming = new System.Windows.Forms.Label();
+            label4 = new System.Windows.Forms.Label();
+            lblLastUpdated = new System.Windows.Forms.Label();
+            timer1 = new System.Windows.Forms.Timer(components);
+            groupBox4 = new System.Windows.Forms.GroupBox();
+            lblRAM = new System.Windows.Forms.Label();
+            label10 = new System.Windows.Forms.Label();
+            lblCPU = new System.Windows.Forms.Label();
+            label8 = new System.Windows.Forms.Label();
+            lblContainerStatus = new System.Windows.Forms.Label();
+            label11 = new System.Windows.Forms.Label();
+            groupBox5 = new System.Windows.Forms.GroupBox();
+            lblPort03 = new System.Windows.Forms.Label();
+            label14 = new System.Windows.Forms.Label();
+            lblPort02 = new System.Windows.Forms.Label();
+            label13 = new System.Windows.Forms.Label();
+            lblPort01 = new System.Windows.Forms.Label();
+            label12 = new System.Windows.Forms.Label();
+            groupBox6 = new System.Windows.Forms.GroupBox();
+            btnHelp = new System.Windows.Forms.Button();
+            btnShowHistory = new System.Windows.Forms.Button();
+            lblBonus = new System.Windows.Forms.Label();
+            lblAvailability = new System.Windows.Forms.Label();
+            lblUptime = new System.Windows.Forms.Label();
+            notifyIcon1 = new NotifyIcon(components);
+            groupBoxControl = new System.Windows.Forms.GroupBox();
+            lblRemoteBlockNum = new System.Windows.Forms.Label();
+            lblRemoteBlockLabel = new System.Windows.Forms.Label();
+            lblLocalBlockNum = new System.Windows.Forms.Label();
+            lblLocalBlockLabel = new System.Windows.Forms.Label();
+            lblMainStatus = new System.Windows.Forms.Label();
+            btnToggleNode = new System.Windows.Forms.Button();
+            toolTip1 = new ToolTip(components);
+            statusStrip1 = new System.Windows.Forms.StatusStrip();
+            statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            mainFlow = new System.Windows.Forms.FlowLayoutPanel();
+            topRowFlow = new System.Windows.Forms.FlowLayoutPanel();
+            leftFlow = new System.Windows.Forms.FlowLayoutPanel();
+            rightFlow = new System.Windows.Forms.FlowLayoutPanel();
+            groupBox1.SuspendLayout();
+            groupBox2.SuspendLayout();
+            groupBox3.SuspendLayout();
+            groupBox4.SuspendLayout();
+            groupBox5.SuspendLayout();
+            groupBox6.SuspendLayout();
+            groupBoxControl.SuspendLayout();
+            mainFlow.SuspendLayout();
+            topRowFlow.SuspendLayout();
+            leftFlow.SuspendLayout();
+            rightFlow.SuspendLayout();
+            SuspendLayout();
             // 
-            // groupBoxControl (Node Control & Status)
+            // groupBox1
             // 
-            this.groupBoxControl.Controls.Add(this.lblRemoteBlockNum);
-            this.groupBoxControl.Controls.Add(this.lblRemoteBlockLabel);
-            this.groupBoxControl.Controls.Add(this.lblLocalBlockNum);
-            this.groupBoxControl.Controls.Add(this.lblLocalBlockLabel);
-            this.groupBoxControl.Controls.Add(this.lblMainStatus);
-            this.groupBoxControl.Controls.Add(this.btnToggleNode);
-            this.groupBoxControl.Location = new System.Drawing.Point(12, 12);
-            this.groupBoxControl.Name = "groupBoxControl";
-            this.groupBoxControl.Size = new System.Drawing.Size(220, 140);
-            this.groupBoxControl.TabIndex = 6;
-            this.groupBoxControl.TabStop = false;
-            this.groupBoxControl.Text = "Node Control";
+            groupBox1.AutoSize = true;
+            groupBox1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            groupBox1.Controls.Add(lblLocalCpuCount);
+            groupBox1.Controls.Add(labelLocalCpu);
+            groupBox1.Controls.Add(lblServerCpuCount);
+            groupBox1.Controls.Add(labelServerCpu);
+            groupBox1.Controls.Add(lblStellarBuild);
+            groupBox1.Controls.Add(label7);
+            groupBox1.Controls.Add(lblProtocolVersion);
+            groupBox1.Controls.Add(label1);
+            groupBox1.ForeColor = Color.White;
+            groupBox1.Location = new Point(0, 150);
+            groupBox1.Margin = new Padding(0, 0, 0, 10);
+            groupBox1.MinimumSize = new Size(230, 130);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(230, 134);
+            groupBox1.TabIndex = 1;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "General Info";
             // 
-            // lblMainStatus
+            // lblLocalCpuCount
             // 
-            this.lblMainStatus.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblMainStatus.ForeColor = System.Drawing.Color.Green;
-            this.lblMainStatus.Location = new System.Drawing.Point(10, 20);
-            this.lblMainStatus.Name = "lblMainStatus";
-            this.lblMainStatus.Size = new System.Drawing.Size(200, 30);
-            this.lblMainStatus.TabIndex = 1;
-            this.lblMainStatus.Text = "Checking status...";
-            this.lblMainStatus.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            lblLocalCpuCount.AutoSize = true;
+            lblLocalCpuCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblLocalCpuCount.Location = new Point(110, 75);
+            lblLocalCpuCount.Name = "lblLocalCpuCount";
+            lblLocalCpuCount.Size = new Size(48, 15);
+            lblLocalCpuCount.TabIndex = 0;
+            lblLocalCpuCount.Text = "0 Cores";
             // 
-            // lblLocalBlockLabel
+            // labelLocalCpu
             // 
-            this.lblLocalBlockLabel.AutoSize = true;
-            this.lblLocalBlockLabel.Location = new System.Drawing.Point(10, 50);
-            this.lblLocalBlockLabel.Name = "lblLocalBlockLabel";
-            this.lblLocalBlockLabel.Size = new System.Drawing.Size(120, 15);
-            this.lblLocalBlockLabel.TabIndex = 2;
-            this.lblLocalBlockLabel.Text = "Local block number:";
+            labelLocalCpu.AutoSize = true;
+            labelLocalCpu.Location = new Point(10, 75);
+            labelLocalCpu.Name = "labelLocalCpu";
+            labelLocalCpu.Size = new Size(65, 15);
+            labelLocalCpu.TabIndex = 1;
+            labelLocalCpu.Text = "Local CPU:";
             // 
-            // lblLocalBlockNum
+            // lblServerCpuCount
             // 
-            this.lblLocalBlockNum.AutoSize = true;
-            this.lblLocalBlockNum.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblLocalBlockNum.Location = new System.Drawing.Point(140, 50);
-            this.lblLocalBlockNum.Name = "lblLocalBlockNum";
-            this.lblLocalBlockNum.Size = new System.Drawing.Size(14, 15);
-            this.lblLocalBlockNum.TabIndex = 3;
-            this.lblLocalBlockNum.Text = "0";
+            lblServerCpuCount.AutoSize = true;
+            lblServerCpuCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblServerCpuCount.Location = new Point(110, 100);
+            lblServerCpuCount.Name = "lblServerCpuCount";
+            lblServerCpuCount.Size = new Size(29, 15);
+            lblServerCpuCount.TabIndex = 2;
+            lblServerCpuCount.Text = "N/A";
             // 
-            // lblRemoteBlockLabel
+            // labelServerCpu
             // 
-            this.lblRemoteBlockLabel.AutoSize = true;
-            this.lblRemoteBlockLabel.Location = new System.Drawing.Point(10, 70);
-            this.lblRemoteBlockLabel.Name = "lblRemoteBlockLabel";
-            this.lblRemoteBlockLabel.Size = new System.Drawing.Size(124, 15);
-            this.lblRemoteBlockLabel.TabIndex = 4;
-            this.lblRemoteBlockLabel.Text = "Latest block number:";
-            // 
-            // lblRemoteBlockNum
-            // 
-            this.lblRemoteBlockNum.AutoSize = true;
-            this.lblRemoteBlockNum.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblRemoteBlockNum.Location = new System.Drawing.Point(140, 70);
-            this.lblRemoteBlockNum.Name = "lblRemoteBlockNum";
-            this.lblRemoteBlockNum.Size = new System.Drawing.Size(14, 15);
-            this.lblRemoteBlockNum.TabIndex = 5;
-            this.lblRemoteBlockNum.Text = "0";
-            // 
-            // btnToggleNode
-            // 
-            this.btnToggleNode.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.btnToggleNode.Location = new System.Drawing.Point(10, 95);
-            this.btnToggleNode.Name = "btnToggleNode";
-            this.btnToggleNode.Size = new System.Drawing.Size(200, 35);
-            this.btnToggleNode.TabIndex = 0;
-            this.btnToggleNode.Text = "Checking...";
-            this.btnToggleNode.UseVisualStyleBackColor = true;
-            this.btnToggleNode.Click += new System.EventHandler(this.btnToggleNode_Click);
-
-            // 
-            // groupBox1 (General Info)
-            // 
-            this.groupBox1.Controls.Add(this.lblStellarBuild);
-            this.groupBox1.Controls.Add(this.label7);
-            this.groupBox1.Controls.Add(this.lblProtocolVersion);
-            this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Location = new System.Drawing.Point(12, 160);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(220, 80);
-            this.groupBox1.TabIndex = 0;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "General Info";
+            labelServerCpu.AutoSize = true;
+            labelServerCpu.Location = new Point(10, 100);
+            labelServerCpu.Name = "labelServerCpu";
+            labelServerCpu.Size = new Size(70, 15);
+            labelServerCpu.TabIndex = 3;
+            labelServerCpu.Text = "Server CPU:";
             // 
             // lblStellarBuild
             // 
-            this.lblStellarBuild.AutoSize = true;
-            this.lblStellarBuild.Location = new System.Drawing.Point(100, 50);
-            this.lblStellarBuild.Name = "lblStellarBuild";
-            this.lblStellarBuild.Size = new System.Drawing.Size(16, 15);
-            this.lblStellarBuild.TabIndex = 3;
-            this.lblStellarBuild.Text = "...";
+            lblStellarBuild.AutoSize = true;
+            lblStellarBuild.Location = new Point(110, 50);
+            lblStellarBuild.Name = "lblStellarBuild";
+            lblStellarBuild.Size = new Size(16, 15);
+            lblStellarBuild.TabIndex = 4;
+            lblStellarBuild.Text = "...";
             // 
             // label7
             // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(10, 50);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(73, 15);
-            this.label7.TabIndex = 2;
-            this.label7.Text = "Core Build:";
+            label7.AutoSize = true;
+            label7.Location = new Point(10, 50);
+            label7.Name = "label7";
+            label7.Size = new Size(66, 15);
+            label7.TabIndex = 5;
+            label7.Text = "Core Build:";
             // 
             // lblProtocolVersion
             // 
-            this.lblProtocolVersion.AutoSize = true;
-            this.lblProtocolVersion.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblProtocolVersion.Location = new System.Drawing.Point(100, 25);
-            this.lblProtocolVersion.Name = "lblProtocolVersion";
-            this.lblProtocolVersion.Size = new System.Drawing.Size(16, 15);
-            this.lblProtocolVersion.TabIndex = 1;
-            this.lblProtocolVersion.Text = "...";
+            lblProtocolVersion.AutoSize = true;
+            lblProtocolVersion.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblProtocolVersion.Location = new Point(110, 25);
+            lblProtocolVersion.Name = "lblProtocolVersion";
+            lblProtocolVersion.Size = new Size(16, 15);
+            lblProtocolVersion.TabIndex = 6;
+            lblProtocolVersion.Text = "...";
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(10, 25);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(79, 15);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "Protocol Ver:";
+            label1.AutoSize = true;
+            label1.Location = new Point(10, 25);
+            label1.Name = "label1";
+            label1.Size = new Size(77, 15);
+            label1.TabIndex = 7;
+            label1.Text = "Protocol Ver:";
             // 
-            // groupBox2 (Consensus)
+            // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.lblLedgerAge);
-            this.groupBox2.Controls.Add(this.label9);
-            this.groupBox2.Controls.Add(this.lblState);
-            this.groupBox2.Controls.Add(this.label3);
-            this.groupBox2.Controls.Add(this.lblLatestBlock);
-            this.groupBox2.Controls.Add(this.label2);
-            this.groupBox2.Location = new System.Drawing.Point(240, 12);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(232, 100);
-            this.groupBox2.TabIndex = 1;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "Consensus";
+            groupBox2.Controls.Add(lblLedgerAge);
+            groupBox2.Controls.Add(label9);
+            groupBox2.Controls.Add(lblState);
+            groupBox2.Controls.Add(label3);
+            groupBox2.Controls.Add(lblLatestBlock);
+            groupBox2.Controls.Add(label2);
+            groupBox2.ForeColor = Color.White;
+            groupBox2.Location = new Point(10, 0);
+            groupBox2.Margin = new Padding(10, 0, 0, 10);
+            groupBox2.Name = "groupBox2";
+            groupBox2.Size = new Size(230, 100);
+            groupBox2.TabIndex = 0;
+            groupBox2.TabStop = false;
+            groupBox2.Text = "Consensus";
             // 
             // lblLedgerAge
             // 
-            this.lblLedgerAge.AutoSize = true;
-            this.lblLedgerAge.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblLedgerAge.Location = new System.Drawing.Point(90, 75);
-            this.lblLedgerAge.Name = "lblLedgerAge";
-            this.lblLedgerAge.Size = new System.Drawing.Size(16, 15);
-            this.lblLedgerAge.TabIndex = 5;
-            this.lblLedgerAge.Text = "...";
+            lblLedgerAge.AutoSize = true;
+            lblLedgerAge.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblLedgerAge.Location = new Point(110, 75);
+            lblLedgerAge.Name = "lblLedgerAge";
+            lblLedgerAge.Size = new Size(16, 15);
+            lblLedgerAge.TabIndex = 0;
+            lblLedgerAge.Text = "...";
             // 
             // label9
             // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(10, 75);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(72, 15);
-            this.label9.TabIndex = 4;
-            this.label9.Text = "Ledger Age:";
+            label9.AutoSize = true;
+            label9.Location = new Point(10, 75);
+            label9.Name = "label9";
+            label9.Size = new Size(31, 15);
+            label9.TabIndex = 1;
+            label9.Text = "Age:";
             // 
             // lblState
             // 
-            this.lblState.AutoSize = true;
-            this.lblState.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblState.Location = new System.Drawing.Point(90, 25);
-            this.lblState.Name = "lblState";
-            this.lblState.Size = new System.Drawing.Size(16, 15);
-            this.lblState.TabIndex = 1;
-            this.lblState.Text = "...";
+            lblState.AutoSize = true;
+            lblState.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblState.Location = new Point(110, 25);
+            lblState.Name = "lblState";
+            lblState.Size = new Size(16, 15);
+            lblState.TabIndex = 2;
+            lblState.Text = "...";
             // 
             // label3
             // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(10, 25);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(40, 15);
-            this.label3.TabIndex = 0;
-            this.label3.Text = "State:";
+            label3.AutoSize = true;
+            label3.Location = new Point(10, 25);
+            label3.Name = "label3";
+            label3.Size = new Size(37, 15);
+            label3.TabIndex = 3;
+            label3.Text = "State:";
             // 
             // lblLatestBlock
             // 
-            this.lblLatestBlock.AutoSize = true;
-            this.lblLatestBlock.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblLatestBlock.Location = new System.Drawing.Point(90, 50);
-            this.lblLatestBlock.Name = "lblLatestBlock";
-            this.lblLatestBlock.Size = new System.Drawing.Size(16, 15);
-            this.lblLatestBlock.TabIndex = 3;
-            this.lblLatestBlock.Text = "...";
+            lblLatestBlock.AutoSize = true;
+            lblLatestBlock.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblLatestBlock.Location = new Point(110, 50);
+            lblLatestBlock.Name = "lblLatestBlock";
+            lblLatestBlock.Size = new Size(16, 15);
+            lblLatestBlock.TabIndex = 4;
+            lblLatestBlock.Text = "...";
             // 
             // label2
             // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(10, 50);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(78, 15);
-            this.label2.TabIndex = 2;
-            this.label2.Text = "Latest Block:";
+            label2.AutoSize = true;
+            label2.Location = new Point(10, 50);
+            label2.Name = "label2";
+            label2.Size = new Size(39, 15);
+            label2.TabIndex = 5;
+            label2.Text = "Block:";
             // 
-            // groupBox3 (Network)
+            // groupBox3
             // 
-            this.groupBox3.Controls.Add(this.lblSupporting);
-            this.groupBox3.Controls.Add(this.label6);
-            this.groupBox3.Controls.Add(this.lblOutgoing);
-            this.groupBox3.Controls.Add(this.label5);
-            this.groupBox3.Controls.Add(this.lblIncoming);
-            this.groupBox3.Controls.Add(this.label4);
-            this.groupBox3.Location = new System.Drawing.Point(12, 250);
-            this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(220, 120);
-            this.groupBox3.TabIndex = 2;
-            this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "Network Stats";
+            groupBox3.Controls.Add(lblSupporting);
+            groupBox3.Controls.Add(label6);
+            groupBox3.Controls.Add(lblOutgoing);
+            groupBox3.Controls.Add(label5);
+            groupBox3.Controls.Add(lblIncoming);
+            groupBox3.Controls.Add(label4);
+            groupBox3.ForeColor = Color.White;
+            groupBox3.Location = new Point(0, 294);
+            groupBox3.Margin = new Padding(0, 0, 0, 10);
+            groupBox3.Name = "groupBox3";
+            groupBox3.Size = new Size(230, 120);
+            groupBox3.TabIndex = 2;
+            groupBox3.TabStop = false;
+            groupBox3.Text = "Network Stats";
             // 
             // lblSupporting
             // 
-            this.lblSupporting.AutoSize = true;
-            this.lblSupporting.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblSupporting.Location = new System.Drawing.Point(100, 80);
-            this.lblSupporting.Name = "lblSupporting";
-            this.lblSupporting.Size = new System.Drawing.Size(23, 15);
-            this.lblSupporting.TabIndex = 7;
-            this.lblSupporting.Text = "No";
+            lblSupporting.AutoSize = true;
+            lblSupporting.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblSupporting.Location = new Point(100, 80);
+            lblSupporting.Name = "lblSupporting";
+            lblSupporting.Size = new Size(23, 15);
+            lblSupporting.TabIndex = 0;
+            lblSupporting.Text = "No";
             // 
             // label6
             // 
-            this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(10, 80);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(71, 15);
-            this.label6.TabIndex = 6;
-            this.label6.Text = "Supporting:";
+            label6.AutoSize = true;
+            label6.Location = new Point(10, 80);
+            label6.Name = "label6";
+            label6.Size = new Size(70, 15);
+            label6.TabIndex = 1;
+            label6.Text = "Supporting:";
             // 
             // lblOutgoing
             // 
-            this.lblOutgoing.AutoSize = true;
-            this.lblOutgoing.Location = new System.Drawing.Point(100, 55);
-            this.lblOutgoing.Name = "lblOutgoing";
-            this.lblOutgoing.Size = new System.Drawing.Size(13, 15);
-            this.lblOutgoing.TabIndex = 5;
-            this.lblOutgoing.Text = "0";
+            lblOutgoing.AutoSize = true;
+            lblOutgoing.Location = new Point(100, 55);
+            lblOutgoing.Name = "lblOutgoing";
+            lblOutgoing.Size = new Size(14, 15);
+            lblOutgoing.TabIndex = 2;
+            lblOutgoing.Text = "0";
             // 
             // label5
             // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(10, 55);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(62, 15);
-            this.label5.TabIndex = 4;
-            this.label5.Text = "Outgoing:";
+            label5.AutoSize = true;
+            label5.Location = new Point(10, 55);
+            label5.Name = "label5";
+            label5.Size = new Size(61, 15);
+            label5.TabIndex = 3;
+            label5.Text = "Outgoing:";
             // 
             // lblIncoming
             // 
-            this.lblIncoming.AutoSize = true;
-            this.lblIncoming.Location = new System.Drawing.Point(100, 30);
-            this.lblIncoming.Name = "lblIncoming";
-            this.lblIncoming.Size = new System.Drawing.Size(13, 15);
-            this.lblIncoming.TabIndex = 3;
-            this.lblIncoming.Text = "0";
+            lblIncoming.AutoSize = true;
+            lblIncoming.Location = new Point(100, 30);
+            lblIncoming.Name = "lblIncoming";
+            lblIncoming.Size = new Size(14, 15);
+            lblIncoming.TabIndex = 4;
+            lblIncoming.Text = "0";
             // 
             // label4
             // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(10, 30);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(61, 15);
-            this.label4.TabIndex = 2;
-            this.label4.Text = "Incoming:";
+            label4.AutoSize = true;
+            label4.Location = new Point(10, 30);
+            label4.Name = "label4";
+            label4.Size = new Size(61, 15);
+            label4.TabIndex = 5;
+            label4.Text = "Incoming:";
             // 
             // lblLastUpdated
             // 
-            this.lblLastUpdated.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblLastUpdated.AutoSize = true;
-            this.lblLastUpdated.ForeColor = System.Drawing.SystemColors.GrayText;
-            this.lblLastUpdated.Location = new System.Drawing.Point(340, 520);
-            this.lblLastUpdated.Name = "lblLastUpdated";
-            this.lblLastUpdated.Size = new System.Drawing.Size(120, 15);
-            this.lblLastUpdated.TabIndex = 99;
-            this.lblLastUpdated.Text = "Last Updated: Never";
+            lblLastUpdated.ForeColor = Color.Silver;
+            lblLastUpdated.Location = new Point(13, 584);
+            lblLastUpdated.Name = "lblLastUpdated";
+            lblLastUpdated.Size = new Size(100, 23);
+            lblLastUpdated.TabIndex = 3;
             // 
-            // timer1
+            // groupBox4
             // 
-            this.timer1.Enabled = true;
-            this.timer1.Interval = 5000;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            groupBox4.Controls.Add(lblRAM);
+            groupBox4.Controls.Add(label10);
+            groupBox4.Controls.Add(lblCPU);
+            groupBox4.Controls.Add(label8);
+            groupBox4.Controls.Add(lblContainerStatus);
+            groupBox4.Controls.Add(label11);
+            groupBox4.ForeColor = Color.White;
+            groupBox4.Location = new Point(10, 110);
+            groupBox4.Margin = new Padding(10, 0, 0, 10);
+            groupBox4.Name = "groupBox4";
+            groupBox4.Size = new Size(230, 120);
+            groupBox4.TabIndex = 1;
+            groupBox4.TabStop = false;
+            groupBox4.Text = "Container Resources";
             // 
-            // groupBox4 (Container Resources)
+            // lblRAM
             // 
-            this.groupBox4.Controls.Add(this.lblRAM);
-            this.groupBox4.Controls.Add(this.label10);
-            this.groupBox4.Controls.Add(this.lblCPU);
-            this.groupBox4.Controls.Add(this.label8);
-            this.groupBox4.Controls.Add(this.lblContainerStatus);
-            this.groupBox4.Controls.Add(this.label11);
-            this.groupBox4.Location = new System.Drawing.Point(240, 120);
-            this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(232, 120);
-            this.groupBox4.TabIndex = 3;
-            this.groupBox4.TabStop = false;
-            this.groupBox4.Text = "Container Resources";
-            // ... (Resources content unchanged) ...
-
+            lblRAM.AutoSize = true;
+            lblRAM.Location = new Point(70, 75);
+            lblRAM.Name = "lblRAM";
+            lblRAM.Size = new Size(16, 15);
+            lblRAM.TabIndex = 0;
+            lblRAM.Text = "...";
             // 
-            // groupBox5 (Local Ports)
+            // label10
             // 
-            this.groupBox5.Controls.Add(this.lblPort03);
-            this.groupBox5.Controls.Add(this.label14);
-            this.groupBox5.Controls.Add(this.lblPort02);
-            this.groupBox5.Controls.Add(this.label13);
-            this.groupBox5.Controls.Add(this.lblPort01);
-            this.groupBox5.Controls.Add(this.label12);
-            this.groupBox5.Location = new System.Drawing.Point(12, 380);
-            this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(460, 60);
-            this.groupBox5.TabIndex = 4;
-            this.groupBox5.TabStop = false;
-            this.groupBox5.Text = "Local Port Check (Listening)";
-            
-            // ... (Ports content unchanged) ...
-
+            label10.AutoSize = true;
+            label10.Location = new Point(10, 75);
+            label10.Name = "label10";
+            label10.Size = new Size(36, 15);
+            label10.TabIndex = 1;
+            label10.Text = "RAM:";
             // 
-            // groupBox6 (Statistics)
+            // lblCPU
             // 
-            this.groupBox6.Controls.Add(this.lblAvailability);
-            this.groupBox6.Controls.Add(this.lblUptime);
-            this.groupBox6.Location = new System.Drawing.Point(12, 450);
-            this.groupBox6.Name = "groupBox6";
-            this.groupBox6.Size = new System.Drawing.Size(460, 60);
-            this.groupBox6.TabIndex = 5;
-            this.groupBox6.TabStop = false;
-            this.groupBox6.Text = "Session Statistics";
-
-            // ... (Stats content unchanged) ...
-
+            lblCPU.AutoSize = true;
+            lblCPU.Location = new Point(70, 50);
+            lblCPU.Name = "lblCPU";
+            lblCPU.Size = new Size(16, 15);
+            lblCPU.TabIndex = 2;
+            lblCPU.Text = "...";
             // 
-            // notifyIcon1
+            // label8
             // 
-             this.notifyIcon1.Text = "Pi Node Monitor";
-            this.notifyIcon1.Visible = true;
-            this.notifyIcon1.BalloonTipTitle = "Pi Node Alert";
+            label8.AutoSize = true;
+            label8.Location = new Point(10, 50);
+            label8.Name = "label8";
+            label8.Size = new Size(33, 15);
+            label8.TabIndex = 3;
+            label8.Text = "CPU:";
+            // 
+            // lblContainerStatus
+            // 
+            lblContainerStatus.AutoSize = true;
+            lblContainerStatus.Location = new Point(70, 25);
+            lblContainerStatus.Name = "lblContainerStatus";
+            lblContainerStatus.Size = new Size(66, 15);
+            lblContainerStatus.TabIndex = 4;
+            lblContainerStatus.Text = "Checking...";
+            // 
+            // label11
+            // 
+            label11.AutoSize = true;
+            label11.Location = new Point(10, 25);
+            label11.Name = "label11";
+            label11.Size = new Size(42, 15);
+            label11.TabIndex = 5;
+            label11.Text = "Name:";
+            // 
+            // groupBox5
+            // 
+            groupBox5.Controls.Add(lblPort03);
+            groupBox5.Controls.Add(label14);
+            groupBox5.Controls.Add(lblPort02);
+            groupBox5.Controls.Add(label13);
+            groupBox5.Controls.Add(lblPort01);
+            groupBox5.Controls.Add(label12);
+            groupBox5.ForeColor = Color.White;
+            groupBox5.Location = new Point(10, 434);
+            groupBox5.Margin = new Padding(0, 0, 0, 10);
+            groupBox5.Name = "groupBox5";
+            groupBox5.Size = new Size(470, 60);
+            groupBox5.TabIndex = 1;
+            groupBox5.TabStop = false;
+            groupBox5.Text = "Local Port Check (Listening)";
+            // 
+            // lblPort03
+            // 
+            lblPort03.AutoSize = true;
+            lblPort03.Location = new Point(380, 25);
+            lblPort03.Name = "lblPort03";
+            lblPort03.Size = new Size(57, 15);
+            lblPort03.TabIndex = 0;
+            lblPort03.Text = "Checking";
+            // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new Point(320, 25);
+            label14.Name = "label14";
+            label14.Size = new Size(45, 15);
+            label14.TabIndex = 1;
+            label14.Text = "31403:";
+            // 
+            // lblPort02
+            // 
+            lblPort02.AutoSize = true;
+            lblPort02.Location = new Point(230, 25);
+            lblPort02.Name = "lblPort02";
+            lblPort02.Size = new Size(57, 15);
+            lblPort02.TabIndex = 2;
+            lblPort02.Text = "Checking";
+            // 
+            // label13
+            // 
+            label13.AutoSize = true;
+            label13.Location = new Point(170, 25);
+            label13.Name = "label13";
+            label13.Size = new Size(45, 15);
+            label13.TabIndex = 3;
+            label13.Text = "31402:";
+            // 
+            // lblPort01
+            // 
+            lblPort01.AutoSize = true;
+            lblPort01.Location = new Point(80, 25);
+            lblPort01.Name = "lblPort01";
+            lblPort01.Size = new Size(57, 15);
+            lblPort01.TabIndex = 4;
+            lblPort01.Text = "Checking";
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.Location = new Point(20, 25);
+            label12.Name = "label12";
+            label12.Size = new Size(45, 15);
+            label12.TabIndex = 5;
+            label12.Text = "31401:";
+            // 
+            // groupBox6
+            // 
+            groupBox6.Controls.Add(btnHelp);
+            groupBox6.Controls.Add(btnShowHistory);
+            groupBox6.Controls.Add(lblBonus);
+            groupBox6.Controls.Add(lblAvailability);
+            groupBox6.Controls.Add(lblUptime);
+            groupBox6.ForeColor = Color.White;
+            groupBox6.Location = new Point(10, 504);
+            groupBox6.Margin = new Padding(0, 0, 0, 10);
+            groupBox6.Name = "groupBox6";
+            groupBox6.Size = new Size(470, 70);
+            groupBox6.TabIndex = 2;
+            groupBox6.TabStop = false;
+            groupBox6.Text = "Session Statistics";
+            // 
+            // btnHelp
+            // 
+            btnHelp.BackColor = Color.FromArgb(255, 192, 128);
+            btnHelp.ForeColor = Color.Black;
+            btnHelp.Location = new Point(340, 20);
+            btnHelp.Name = "btnHelp";
+            btnHelp.Size = new Size(52, 26);
+            btnHelp.TabIndex = 0;
+            btnHelp.Text = "Help";
+            btnHelp.UseVisualStyleBackColor = false;
+            btnHelp.Click += btnHelp_Click;
+            // 
+            // btnShowHistory
+            // 
+            btnShowHistory.BackColor = Color.FromArgb(255, 192, 128);
+            btnShowHistory.ForeColor = Color.Black;
+            btnShowHistory.Location = new Point(395, 20);
+            btnShowHistory.Name = "btnShowHistory";
+            btnShowHistory.Size = new Size(58, 26);
+            btnShowHistory.TabIndex = 1;
+            btnShowHistory.Text = "History";
+            btnShowHistory.UseVisualStyleBackColor = false;
+            btnShowHistory.Click += btnShowHistory_Click;
+            // 
+            // lblBonus
+            // 
+            lblBonus.AutoSize = true;
+            lblBonus.BackColor = Color.FromArgb(41, 41, 41);
+            lblBonus.BorderStyle = BorderStyle.FixedSingle;
+            lblBonus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblBonus.ForeColor = Color.Peru;
+            lblBonus.Location = new Point(240, 25);
+            lblBonus.Name = "lblBonus";
+            lblBonus.Size = new Size(87, 17);
+            lblBonus.TabIndex = 2;
+            lblBonus.Text = "Bonus: 0.0000";
+            // 
+            // lblAvailability
+            // 
+            lblAvailability.AutoSize = true;
+            lblAvailability.Location = new Point(125, 25);
+            lblAvailability.Name = "lblAvailability";
+            lblAvailability.Size = new Size(106, 15);
+            lblAvailability.TabIndex = 3;
+            lblAvailability.Text = "Availability: 0.00%";
+            // 
+            // lblUptime
+            // 
+            lblUptime.AutoSize = true;
+            lblUptime.Location = new Point(15, 25);
+            lblUptime.Name = "lblUptime";
+            lblUptime.Size = new Size(101, 15);
+            lblUptime.TabIndex = 4;
+            lblUptime.Text = "Uptime: 00:00:00";
+            // 
+            // groupBoxControl
+            // 
+            groupBoxControl.Controls.Add(lblRemoteBlockNum);
+            groupBoxControl.Controls.Add(lblRemoteBlockLabel);
+            groupBoxControl.Controls.Add(lblLocalBlockNum);
+            groupBoxControl.Controls.Add(lblLocalBlockLabel);
+            groupBoxControl.Controls.Add(lblMainStatus);
+            groupBoxControl.Controls.Add(btnToggleNode);
+            groupBoxControl.ForeColor = Color.White;
+            groupBoxControl.Location = new Point(0, 0);
+            groupBoxControl.Margin = new Padding(0, 0, 0, 10);
+            groupBoxControl.Name = "groupBoxControl";
+            groupBoxControl.Size = new Size(230, 140);
+            groupBoxControl.TabIndex = 0;
+            groupBoxControl.TabStop = false;
+            groupBoxControl.Text = "Node Control";
+            // 
+            // lblRemoteBlockNum
+            // 
+            lblRemoteBlockNum.AutoSize = true;
+            lblRemoteBlockNum.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblRemoteBlockNum.Location = new Point(140, 70);
+            lblRemoteBlockNum.Name = "lblRemoteBlockNum";
+            lblRemoteBlockNum.Size = new Size(14, 15);
+            lblRemoteBlockNum.TabIndex = 0;
+            lblRemoteBlockNum.Text = "0";
+            // 
+            // lblRemoteBlockLabel
+            // 
+            lblRemoteBlockLabel.AutoSize = true;
+            lblRemoteBlockLabel.Location = new Point(10, 70);
+            lblRemoteBlockLabel.Name = "lblRemoteBlockLabel";
+            lblRemoteBlockLabel.Size = new Size(120, 15);
+            lblRemoteBlockLabel.TabIndex = 1;
+            lblRemoteBlockLabel.Text = "Latest block number:";
+            // 
+            // lblLocalBlockNum
+            // 
+            lblLocalBlockNum.AutoSize = true;
+            lblLocalBlockNum.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblLocalBlockNum.Location = new Point(140, 50);
+            lblLocalBlockNum.Name = "lblLocalBlockNum";
+            lblLocalBlockNum.Size = new Size(14, 15);
+            lblLocalBlockNum.TabIndex = 2;
+            lblLocalBlockNum.Text = "0";
+            // 
+            // lblLocalBlockLabel
+            // 
+            lblLocalBlockLabel.AutoSize = true;
+            lblLocalBlockLabel.Location = new Point(10, 50);
+            lblLocalBlockLabel.Name = "lblLocalBlockLabel";
+            lblLocalBlockLabel.Size = new Size(117, 15);
+            lblLocalBlockLabel.TabIndex = 3;
+            lblLocalBlockLabel.Text = "Local block number:";
+            // 
+            // lblMainStatus
+            // 
+            lblMainStatus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblMainStatus.ForeColor = Color.LightGreen;
+            lblMainStatus.Location = new Point(10, 20);
+            lblMainStatus.Name = "lblMainStatus";
+            lblMainStatus.Size = new Size(200, 30);
+            lblMainStatus.TabIndex = 4;
+            lblMainStatus.Text = "Checking status...";
+            lblMainStatus.TextAlign = ContentAlignment.TopCenter;
+            // 
+            // btnToggleNode
+            // 
+            btnToggleNode.BackColor = Color.Snow;
+            btnToggleNode.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnToggleNode.ForeColor = Color.Salmon;
+            btnToggleNode.Location = new Point(10, 95);
+            btnToggleNode.Name = "btnToggleNode";
+            btnToggleNode.Size = new Size(200, 35);
+            btnToggleNode.TabIndex = 5;
+            btnToggleNode.Text = "Checking...";
+            btnToggleNode.UseVisualStyleBackColor = false;
+            btnToggleNode.Click += btnToggleNode_Click;
             // 
             // statusStrip1
             // 
-            this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { this.statusLabel });
-            this.statusStrip1.Location = new System.Drawing.Point(0, 528);
-            this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(484, 22);
-            this.statusStrip1.TabIndex = 6;
-            this.statusStrip1.Text = "statusStrip1";
+            statusStrip1.Location = new Point(0, 698);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Size = new Size(510, 22);
+            statusStrip1.TabIndex = 1;
             // 
             // statusLabel
             // 
-            this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(100, 17);
-            this.statusLabel.Text = "Ready";
+            statusLabel.Name = "statusLabel";
+            statusLabel.Size = new Size(23, 23);
+            // 
+            // mainFlow
+            // 
+            mainFlow.AutoScroll = true;
+            mainFlow.BackColor = Color.FromArgb(41, 41, 41);
+            mainFlow.Controls.Add(topRowFlow);
+            mainFlow.Controls.Add(groupBox5);
+            mainFlow.Controls.Add(groupBox6);
+            mainFlow.Controls.Add(lblLastUpdated);
+            mainFlow.Dock = DockStyle.Fill;
+            mainFlow.FlowDirection = FlowDirection.TopDown;
+            mainFlow.Location = new Point(0, 0);
+            mainFlow.Name = "mainFlow";
+            mainFlow.Padding = new Padding(10);
+            mainFlow.Size = new Size(510, 698);
+            mainFlow.TabIndex = 0;
+            mainFlow.WrapContents = false;
+            // 
+            // topRowFlow
+            // 
+            topRowFlow.AutoSize = true;
+            topRowFlow.Controls.Add(leftFlow);
+            topRowFlow.Controls.Add(rightFlow);
+            topRowFlow.Location = new Point(10, 10);
+            topRowFlow.Margin = new Padding(0);
+            topRowFlow.Name = "topRowFlow";
+            topRowFlow.Size = new Size(470, 424);
+            topRowFlow.TabIndex = 0;
+            topRowFlow.WrapContents = false;
+            // 
+            // leftFlow
+            // 
+            leftFlow.AutoSize = true;
+            leftFlow.Controls.Add(groupBoxControl);
+            leftFlow.Controls.Add(groupBox1);
+            leftFlow.Controls.Add(groupBox3);
+            leftFlow.FlowDirection = FlowDirection.TopDown;
+            leftFlow.Location = new Point(0, 0);
+            leftFlow.Margin = new Padding(0);
+            leftFlow.Name = "leftFlow";
+            leftFlow.Size = new Size(230, 424);
+            leftFlow.TabIndex = 0;
+            // 
+            // rightFlow
+            // 
+            rightFlow.AutoSize = true;
+            rightFlow.Controls.Add(groupBox2);
+            rightFlow.Controls.Add(groupBox4);
+            rightFlow.FlowDirection = FlowDirection.TopDown;
+            rightFlow.Location = new Point(230, 0);
+            rightFlow.Margin = new Padding(0);
+            rightFlow.Name = "rightFlow";
+            rightFlow.Size = new Size(240, 240);
+            rightFlow.TabIndex = 1;
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(484, 572);
-            this.Controls.Add(this.statusStrip1);
-            this.Controls.Add(this.groupBoxControl);
-            this.Controls.Add(this.groupBox6);
-            this.Controls.Add(this.groupBox5);
-            this.Controls.Add(this.groupBox4);
-            this.Controls.Add(this.groupBox3);
-            this.Controls.Add(this.groupBox2);
-            this.Controls.Add(this.lblLastUpdated);
-            this.Controls.Add(this.groupBox1);
-            this.Name = "Form1";
-            this.Text = "Pi Node Monitor Pro";
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
-            this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
-            this.groupBox4.ResumeLayout(false);
-            this.groupBox4.PerformLayout();
-            this.groupBox5.ResumeLayout(false);
-            this.groupBox5.PerformLayout();
-            this.groupBox6.ResumeLayout(false);
-            this.groupBox6.PerformLayout();
-            this.groupBoxControl.ResumeLayout(false);
-            this.groupBoxControl.PerformLayout();
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            ClientSize = new Size(510, 720);
+            Controls.Add(mainFlow);
+            Controls.Add(statusStrip1);
+            Name = "Form1";
+            Text = "Pi Node Monitor Pro";
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
+            groupBox2.ResumeLayout(false);
+            groupBox2.PerformLayout();
+            groupBox3.ResumeLayout(false);
+            groupBox3.PerformLayout();
+            groupBox4.ResumeLayout(false);
+            groupBox4.PerformLayout();
+            groupBox5.ResumeLayout(false);
+            groupBox5.PerformLayout();
+            groupBox6.ResumeLayout(false);
+            groupBox6.PerformLayout();
+            groupBoxControl.ResumeLayout(false);
+            groupBoxControl.PerformLayout();
+            mainFlow.ResumeLayout(false);
+            mainFlow.PerformLayout();
+            topRowFlow.ResumeLayout(false);
+            topRowFlow.PerformLayout();
+            leftFlow.ResumeLayout(false);
+            leftFlow.PerformLayout();
+            rightFlow.ResumeLayout(false);
+            ResumeLayout(false);
+            PerformLayout();
 
         }
 
@@ -607,6 +788,13 @@
         private System.Windows.Forms.GroupBox groupBox6;
         private System.Windows.Forms.Label lblAvailability;
         private System.Windows.Forms.Label lblUptime;
+        private System.Windows.Forms.Label lblBonus;
+        private System.Windows.Forms.Label lblServerCpuCount;
+        private System.Windows.Forms.Label labelServerCpu;
+        private System.Windows.Forms.Label lblLocalCpuCount;
+        private System.Windows.Forms.Label labelLocalCpu;
+        private System.Windows.Forms.Button btnShowHistory;
+        private System.Windows.Forms.Button btnHelp;
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.GroupBox groupBoxControl;
         private System.Windows.Forms.Button btnToggleNode;
@@ -618,5 +806,9 @@
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
+        private System.Windows.Forms.FlowLayoutPanel mainFlow;
+        private System.Windows.Forms.FlowLayoutPanel topRowFlow;
+        private System.Windows.Forms.FlowLayoutPanel leftFlow;
+        private System.Windows.Forms.FlowLayoutPanel rightFlow;
     }
 }

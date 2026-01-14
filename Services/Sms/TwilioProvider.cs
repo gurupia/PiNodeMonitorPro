@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -25,9 +26,9 @@ namespace PiNodeMonitorWinForm.Services.Sms
 
             using (var client = new HttpClient())
             {
-                string url = $"https://api.twilio.com/2010-04-01/Accounts/{_accountSid}/Messages.json";
+                string url = string.Format("https://api.twilio.com/2010-04-01/Accounts/{0}/Messages.json", _accountSid);
                 
-                var authBytes = Encoding.ASCII.GetBytes($"{_accountSid}:{_authToken}");
+                var authBytes = Encoding.ASCII.GetBytes(string.Format("{0}:{1}", _accountSid, _authToken));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
 
                 var content = new FormUrlEncodedContent(new[]

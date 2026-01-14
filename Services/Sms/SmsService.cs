@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace PiNodeMonitorWinForm.Services.Sms
 {
@@ -26,7 +26,7 @@ namespace PiNodeMonitorWinForm.Services.Sms
                 if (File.Exists(CONFIG_FILE))
                 {
                     string json = File.ReadAllText(CONFIG_FILE);
-                    _config = JsonSerializer.Deserialize<SmsConfigModel>(json);
+                    _config = JsonConvert.DeserializeObject<SmsConfigModel>(json);
                 }
                 else if (File.Exists("sms_config.txt")) // Migration Support
                 {
@@ -90,8 +90,7 @@ namespace PiNodeMonitorWinForm.Services.Sms
         {
             try
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(config, options);
+                string json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(CONFIG_FILE, json);
             }
             catch { }
@@ -136,9 +135,11 @@ namespace PiNodeMonitorWinForm.Services.Sms
 
             try
             {
-                using var client = new System.Net.Http.HttpClient();
-                string url = $"https://api.telegram.org/bot{_config.TelegramBotToken}/sendMessage?chat_id={_config.TelegramChatId}&text={System.Uri.EscapeDataString(message)}";
-                await client.GetAsync(url);
+                using (var client = new System.Net.Http.HttpClient())
+                {
+                    string url = string.Format("https://api.telegram.org/bot{0}/sendMessage?chat_id={1}&text={2}", _config.TelegramBotToken, _config.TelegramChatId, System.Uri.EscapeDataString(message));
+                    await client.GetAsync(url);
+                }
             }
             catch { }
         }

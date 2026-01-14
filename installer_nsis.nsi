@@ -53,6 +53,7 @@ Section "Install"
     
     ; Check if source exists before compiling (for safety, though NSIS checks at compile time)
     File "${SOURCE_DIR}\${EXE_NAME}"
+    File "${SOURCE_DIR}\GurupiaCapture.Core.dll"
 
     ; Create Uninstaller
     WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -74,6 +75,7 @@ SectionEnd
 
 Section "Uninstall"
     Delete "$INSTDIR\${EXE_NAME}"
+    Delete "$INSTDIR\GurupiaCapture.Core.dll"
     Delete "$INSTDIR\uninstall.exe"
     RMDir "$INSTDIR"
 

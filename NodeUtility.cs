@@ -1,15 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace PiNodeMonitorWinForm
 {
     public static class NodeUtility
     {
-        // Global setting for the container name we found or selected
-        public static string CurrentContainerName { get; set; } = "pi-consensus";
+        public static string CurrentContainerName { get; set; }
 
-        // 1. Check if Docker is installed and running
+        static NodeUtility()
+        {
+            CurrentContainerName = "pi-consensus";
+        }
+
         public static async Task<bool> IsDockerRunningAsync()
         {
             try
@@ -24,27 +30,20 @@ namespace PiNodeMonitorWinForm
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                string output = await process.StandardOutput.ReadToEndAsync();
-                await process.WaitForExitAsync();
-
-                // If version is returned, Docker is running
-                return !string.IsNullOrWhiteSpace(output) && process.ExitCode == 0;
+                using (var process = Process.Start(psi))
+                {
+                    if (process == null) return false;
+                    string output = process.StandardOutput.ReadToEnd();
+                    await Task.Run(() => process.WaitForExit());
+                    return !string.IsNullOrWhiteSpace(output) && process.ExitCode == 0;
+                }
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
-        // 2. Check if specific Docker image exists (Broad Search with Fallback)
         public static async Task<bool> IsImagePresentAsync(string imageNamePart)
         {
             string output = "";
-            
-            // Way 1: Direct execution
             try
             {
                 var psi = new ProcessStartInfo
@@ -57,16 +56,17 @@ namespace PiNodeMonitorWinForm
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(psi);
-                if (process != null)
+                using (var process = Process.Start(psi))
                 {
-                    output = await process.StandardOutput.ReadToEndAsync();
-                    await process.WaitForExitAsync();
+                    if (process != null)
+                    {
+                        output = process.StandardOutput.ReadToEnd();
+                        await Task.Run(() => process.WaitForExit());
+                    }
                 }
             }
             catch { }
 
-            // Way 2: Fallback to CMD if output is empty (sometimes PATH issues)
             if (string.IsNullOrWhiteSpace(output))
             {
                 try
@@ -80,26 +80,24 @@ namespace PiNodeMonitorWinForm
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
-                    using var process = Process.Start(psi);
-                    if (process != null)
+                    using (var process = Process.Start(psi))
                     {
-                        output = await process.StandardOutput.ReadToEndAsync();
-                        await process.WaitForExitAsync();
+                        if (process != null)
+                        {
+                            output = process.StandardOutput.ReadToEnd();
+                            await Task.Run(() => process.WaitForExit());
+                        }
                     }
                 }
                 catch { }
             }
-
-            // Check entire block of text
             return !string.IsNullOrWhiteSpace(output) && output.Contains(imageNamePart);
         }
 
-        // 2.5 Check if specific Docker CONTAINER exists (Running or Stopped)
-        // This is better than image check because it confirms the node is set up.
         public static async Task<bool> IsContainerExistAsync(string containerName)
         {
             string output = "";
-            try // Direct
+            try 
             {
                 var psi = new ProcessStartInfo("docker", "ps -a") 
                 { 
@@ -111,8 +109,8 @@ namespace PiNodeMonitorWinForm
                 { 
                     if (p != null)
                     {
-                        output = await p.StandardOutput.ReadToEndAsync(); 
-                        await p.WaitForExitAsync(); 
+                        output = p.StandardOutput.ReadToEnd(); 
+                        await Task.Run(() => p.WaitForExit()); 
                     }
                 }
             }
@@ -120,7 +118,7 @@ namespace PiNodeMonitorWinForm
 
             if (string.IsNullOrWhiteSpace(output))
             {
-                try // CMD Fallback
+                try 
                 {
                     var psi = new ProcessStartInfo("cmd", "/c docker ps -a") 
                     { 
@@ -132,19 +130,59 @@ namespace PiNodeMonitorWinForm
                     { 
                         if (p != null)
                         {
-                            output = await p.StandardOutput.ReadToEndAsync(); 
-                            await p.WaitForExitAsync(); 
+                            output = p.StandardOutput.ReadToEnd(); 
+                            await Task.Run(() => p.WaitForExit()); 
                         }
                     }
                 }
                 catch {}
             }
-
-            // Check if output contains the container name
             return !string.IsNullOrWhiteSpace(output) && output.Contains(containerName);
         }
 
-        // 3. Check if Pi Node ports are actually LISTENING (more reliable than firewall rules)
+        public static async Task<string> GetNodeUuidAsync()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            try
+            {
+                string prefPath = Path.Combine(appData, "Pi Network", "user-preferences.json");
+                if (File.Exists(prefPath))
+                {
+                    string json = File.ReadAllText(prefPath);
+                    var match = Regex.Match(json, @"""uuid""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
+                    if (match.Success) return match.Groups[1].Value;
+                    
+                    match = Regex.Match(json, @"uuid\s*[=:']\s*['""]?([a-f0-9\-]{36})['""]?", RegexOptions.IgnoreCase);
+                    if (match.Success) return match.Groups[1].Value;
+                }
+            }
+            catch { }
+
+            try
+            {
+                string[] logPaths = {
+                    Path.Combine(appData, "Pi Network", "logs", "main.log"),
+                    Path.Combine(appData, "Pi Network", "main.log")
+                };
+
+                foreach (var logPath in logPaths)
+                {
+                    if (File.Exists(logPath))
+                    {
+                        using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (var sr = new StreamReader(fs))
+                        {
+                            string content = sr.ReadToEnd();
+                            var matches = Regex.Matches(content, @"uuid\s*[=:']\s*['""]?([a-f0-9\-]{36})['""]?", RegexOptions.IgnoreCase);
+                            if (matches.Count > 0) return matches[matches.Count - 1].Groups[1].Value;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
         public static async Task<bool> IsFirewallRulePresentAsync()
         {
             try
@@ -159,48 +197,40 @@ namespace PiNodeMonitorWinForm
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                string output = await process.StandardOutput.ReadToEndAsync();
-                await process.WaitForExitAsync();
-
-                // Check if ports 31401, 31402, 31403 are in LISTENING state
-                bool has31401 = output.Contains(":31401") && output.Contains("LISTENING");
-                bool has31402 = output.Contains(":31402") && output.Contains("LISTENING");
-                bool has31403 = output.Contains(":31403") && output.Contains("LISTENING");
-
-                // If at least one port is listening, consider it OK (node is running)
-                return has31401 || has31402 || has31403;
+                using (var process = Process.Start(psi))
+                {
+                    if (process == null) return false;
+                    string output = process.StandardOutput.ReadToEnd();
+                    await Task.Run(() => process.WaitForExit());
+                    bool has31401 = output.Contains(":31401") && output.Contains("LISTENING");
+                    bool has31402 = output.Contains(":31402") && output.Contains("LISTENING");
+                    bool has31403 = output.Contains(":31403") && output.Contains("LISTENING");
+                    return has31401 || has31402 || has31403;
+                }
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
-        // Helper to run arbitrary commands (for fixes)
         public static async Task RunCommandAsync(string fileName, string args, bool asAdmin = false)
         {
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
                 Arguments = args,
-                UseShellExecute = true, // Needed for Verb generic
+                UseShellExecute = true,
                 CreateNoWindow = asAdmin ? false : true 
             };
 
-            if (asAdmin)
-            {
-                psi.Verb = "runas"; // Request Admin
-            }
+            if (asAdmin) psi.Verb = "runas";
 
             try
             {
-                using var p = Process.Start(psi);
-                if (p != null) await p.WaitForExitAsync();
+                using (var p = Process.Start(psi))
+                {
+                    if (p != null) await Task.Run(() => p.WaitForExit());
+                }
             }
-            catch { /* User might have cancelled UAC */ }
+            catch { }
         }
     }
 }

@@ -2,44 +2,80 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text.Json;
+using Newtonsoft.Json;
 using System.Windows.Forms;
 
 namespace PiNodeMonitorWinForm.Services.ExternalTools
 {
     public class ExternalToolConfig
     {
-        public string Name { get; set; } = "";
-        public string ExecutablePath { get; set; } = "";
-        public string Arguments { get; set; } = ""; // Placeholders: {ip}, {port}
-        public bool IsDefault { get; set; } = false;
+        public string Name { get; set; }
+        public string ExecutablePath { get; set; }
+        public string Arguments { get; set; } 
+        public bool IsDefault { get; set; }
+
+        public ExternalToolConfig()
+        {
+            Name = "";
+            ExecutablePath = "";
+            Arguments = "";
+            IsDefault = false;
+        }
+
+        public override string ToString() => Name;
     }
 
     public class ExternalToolService
     {
         private const string CONFIG_FILE = "external_tools.json";
-        private List<ExternalToolConfig> _tools = new List<ExternalToolConfig>();
+        private List<ExternalToolConfig> _tools;
 
         public ExternalToolService()
         {
-            LoadTools();
+            _tools = new List<ExternalToolConfig>();
+            LoadConfigs();
         }
 
-        public List<ExternalToolConfig> GetTools()
+        public List<ExternalToolConfig> GetTools() => _tools;
+
+        public void LoadConfigs()
         {
-            return _tools;
+            try
+            {
+                if (File.Exists(CONFIG_FILE))
+                {
+                    string json = File.ReadAllText(CONFIG_FILE);
+                    _tools = JsonConvert.DeserializeObject<List<ExternalToolConfig>>(json);
+                }
+            }
+            catch { }
+
+            if (_tools == null || _tools.Count == 0)
+            {
+                _tools = GetDefaultTools();
+            }
+        }
+
+        public void SaveConfigs()
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(_tools, Formatting.Indented);
+                File.WriteAllText(CONFIG_FILE, json);
+            }
+            catch { }
         }
 
         public void AddTool(ExternalToolConfig tool)
         {
             _tools.Add(tool);
-            SaveTools();
+            SaveConfigs();
         }
 
         public void RemoveTool(ExternalToolConfig tool)
         {
             _tools.Remove(tool);
-            SaveTools();
+            SaveConfigs();
         }
 
         public void UpdateTool(int index, ExternalToolConfig tool)
@@ -47,110 +83,33 @@ namespace PiNodeMonitorWinForm.Services.ExternalTools
             if (index >= 0 && index < _tools.Count)
             {
                 _tools[index] = tool;
-                SaveTools();
+                SaveConfigs();
             }
         }
 
-        public void LoadTools()
+        private List<ExternalToolConfig> GetDefaultTools()
         {
-            if (File.Exists(CONFIG_FILE))
+            return new List<ExternalToolConfig>
             {
-                try
-                {
-                    string json = File.ReadAllText(CONFIG_FILE);
-                    _tools = JsonSerializer.Deserialize<List<ExternalToolConfig>>(json) ?? new List<ExternalToolConfig>();
-                }
-                catch { _tools = new List<ExternalToolConfig>(); }
-            }
-
-            // Defaults if empty
-            if (_tools.Count == 0)
-            {
-                _tools.Add(new ExternalToolConfig 
-                { 
-                    Name = "Windows Remote Desktop (MSTSC)", 
-                    ExecutablePath = "mstsc.exe", 
-                    Arguments = "/v:{ip}", 
-                    IsDefault = true 
-                });
-                
-                _tools.Add(new ExternalToolConfig 
-                { 
-                    Name = "RustDesk", 
-                    ExecutablePath = @"C:\Program Files\RustDesk\rustdesk.exe", 
-                    Arguments = "--connect {ip}" 
-                });
-
-                _tools.Add(new ExternalToolConfig 
-                { 
-                    Name = "HopToDesk", 
-                    ExecutablePath = @"C:\Program Files\HopToDesk\HopToDesk.exe", 
-                    Arguments = "--connect {ip}" 
-                });
-
-                _tools.Add(new ExternalToolConfig 
-                { 
-                    Name = "AnyDesk", 
-                    ExecutablePath = @"C:\Program Files (x86)\AnyDesk\AnyDesk.exe", 
-                    Arguments = "{ip}" 
-                });
-
-                _tools.Add(new ExternalToolConfig 
-                { 
-                    Name = "TeamViewer", 
-                    ExecutablePath = @"C:\Program Files\TeamViewer\TeamViewer.exe", 
-                    Arguments = "-i {ip}" 
-                });
-
-                SaveTools();
-            }
+                new ExternalToolConfig { Name = "AnyDesk", ExecutablePath = @"C:\Program Files (x86)\AnyDesk\AnyDesk.exe", Arguments = "", IsDefault = true },
+                new ExternalToolConfig { Name = "RustDesk", ExecutablePath = @"C:\Program Files\RustDesk\rustdesk.exe", Arguments = "" },
+                new ExternalToolConfig { Name = "Remote Desktop", ExecutablePath = "mstsc.exe", Arguments = "/v:{ip}" }
+            };
         }
 
-        private void SaveTools()
+        public void LaunchTool(string name, string ip, int port)
         {
+            var tool = _tools.Find(t => t.Name == name);
+            if (tool == null) return;
+
+            string args = tool.Arguments.Replace("{ip}", ip).Replace("{port}", port.ToString());
             try
             {
-                string json = JsonSerializer.Serialize(_tools, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(CONFIG_FILE, json);
-            }
-            catch { }
-        }
-
-        public void LaunchTool(ExternalToolConfig tool, string ip, string port = "")
-        {
-            try
-            {
-                string ipOnly = ip;
-                string portOnly = "3389"; // Default RDP
-
-                // Handle IP:Port format
-                if (ip.Contains(":"))
-                {
-                    var parts = ip.Split(':');
-                    ipOnly = parts[0];
-                    if (parts.Length > 1) portOnly = parts[1];
-                }
-
-                // If port arg is provided separately, use it
-                if (!string.IsNullOrEmpty(port)) portOnly = port;
-
-                // Replace placeholders
-                string args = tool.Arguments
-                    .Replace("{ip}", ipOnly)
-                    .Replace("{port}", portOnly);
-
-                ProcessStartInfo psi = new ProcessStartInfo
-                {
-                    FileName = tool.ExecutablePath,
-                    Arguments = args,
-                    UseShellExecute = true 
-                };
-
-                Process.Start(psi);
+                Process.Start(tool.ExecutablePath, args);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to launch tool: {ex.Message}\n\nPlease check if the executable path is correct.", "Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Failed to launch " + name + ": " + ex.Message);
             }
         }
     }

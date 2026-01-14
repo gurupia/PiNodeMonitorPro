@@ -4,7 +4,8 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Text.Json.Nodes;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace PiNodeMonitorWinForm.Services.Sms
 {
@@ -31,23 +32,20 @@ namespace PiNodeMonitorWinForm.Services.Sms
             string signature = CalculateSignature(_apiSecret, date, salt);
 
             // Payload
-            var payload = new JsonObject
-            {
-                ["message"] = new JsonObject
-                {
-                    ["to"] = to.Replace("-", ""),
-                    ["from"] = _senderPhone.Replace("-", ""),
-                    ["text"] = message
-                }
-            };
+            var payload = new JObject();
+            var msg = new JObject();
+            msg["to"] = to.Replace("-", "");
+            msg["from"] = _senderPhone.Replace("-", "");
+            msg["text"] = message;
+            payload["message"] = msg;
 
             using (var client = new HttpClient())
             {
                 // Solapi API v4
-                string url = $"https://api.solapi.com/messages/v4/send";
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("HMAC-SHA256", $"apiKey={_apiKey}, date={date}, salt={salt}, signature={signature}");
+                string url = "https://api.solapi.com/messages/v4/send";
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("HMAC-SHA256", string.Format("apiKey={0}, date={1}, salt={2}, signature={3}", _apiKey, date, salt, signature));
 
-                var content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json");
+                var content = new StringContent(payload.ToString(Formatting.None), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync(url, content);
                 
                 return response.IsSuccessStatusCode;
