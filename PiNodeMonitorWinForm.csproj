@@ -49,5 +49,11 @@
     <EmbeddedResource Include="costura64\GurupiaCapture.Core.dll" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Resources\mobile_index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 
 </Project>
