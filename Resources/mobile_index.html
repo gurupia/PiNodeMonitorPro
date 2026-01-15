@@ -6,41 +6,59 @@
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
     <title>Pi Node Mobile Control</title>
     <style>
+        :root {
+            --bg-deep: #0a0e14;
+            --bg-card: rgba(22, 27, 34, 0.85);
+            --bg-glass: rgba(30, 40, 55, 0.6);
+            --border-glow: rgba(242, 169, 0, 0.3);
+            --accent-gold: #f2a900;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+        }
+
         body {
             margin: 0;
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: -apple-system, system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg-deep) 0%, #101820 50%, #0a1628 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
             overflow-x: hidden;
+            min-height: 100vh;
         }
 
         #header {
             height: 60px;
-            background: #161b22;
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             display: flex;
             align-items: center;
             padding: 0 20px;
-            border-bottom: 1px solid #30363d;
+            border-bottom: 1px solid var(--border-glow);
             position: sticky;
             top: 0;
             z-index: 100;
         }
 
         .logo {
-            color: #f2a900;
+            color: var(--accent-gold);
             font-weight: bold;
             font-size: 1.2rem;
             display: flex;
             align-items: center;
+            text-shadow: 0 0 10px rgba(242, 169, 0, 0.5);
         }
 
         .logo span {
-            background: #f2a900;
+            background: linear-gradient(135deg, var(--accent-gold), #ffcc00);
             color: #000;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-right: 8px;
-            font-size: 0.9rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-right: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(242, 169, 0, 0.4);
         }
 
         .container {
@@ -51,20 +69,29 @@
         }
 
         .card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         .card-title {
-            font-size: 0.9rem;
-            color: #8b949e;
+            font-size: 0.8rem;
+            color: var(--accent-gold);
             margin-bottom: 15px;
-            font-weight: 500;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
 
         .status-grid {
@@ -75,32 +102,42 @@
 
         .status-item {
             padding: 15px;
-            background: #0d1117;
-            border-radius: 10px;
-            border: 1px solid #30363d;
+            background: rgba(13, 17, 23, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.2s;
+        }
+
+        .status-item:hover {
+            background: rgba(20, 25, 35, 0.8);
+            border-color: var(--border-glow);
         }
 
         .status-label {
-            font-size: 0.75rem;
-            color: #8b949e;
-            margin-bottom: 5px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .status-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #58a6ff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
         }
 
         .status-value.success {
-            color: #3fb950;
+            color: var(--accent-green);
+            text-shadow: 0 0 10px rgba(63, 185, 80, 0.4);
         }
 
         .action-btn {
             width: 100%;
-            padding: 16px;
+            padding: 16px 20px;
             margin-bottom: 12px;
-            border-radius: 10px;
+            border-radius: 12px;
             border: none;
             font-size: 1rem;
             font-weight: 600;
@@ -108,33 +145,56 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.1s;
+            transition: all 0.15s ease;
             -webkit-tap-highlight-color: transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(255, 255, 255, 0.1), transparent);
+            pointer-events: none;
         }
 
         .action-btn:active {
-            transform: scale(0.97);
+            transform: scale(0.96);
         }
 
         .action-btn.primary {
-            background: #238636;
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
             color: #fff;
+            box-shadow: 0 4px 15px rgba(35, 134, 54, 0.4);
+        }
+
+        .action-btn.primary:hover {
+            box-shadow: 0 6px 20px rgba(35, 134, 54, 0.5);
         }
 
         .action-btn.secondary {
-            background: #21262d;
-            color: #c9d1d9;
-            border: 1px solid #30363d;
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        .action-btn.secondary:hover {
+            border-color: var(--border-glow);
+            background: rgba(40, 50, 65, 0.7);
         }
 
         .action-btn.danger {
-            background: #da3633;
+            background: linear-gradient(135deg, #da3633 0%, #f85149 100%);
             color: #fff;
+            box-shadow: 0 4px 15px rgba(218, 54, 51, 0.4);
         }
 
         .action-btn i {
             margin-right: 10px;
             font-style: normal;
+            font-size: 1.1rem;
         }
 
         #remote-view {
@@ -175,8 +235,10 @@
             bottom: 0;
             width: 100%;
             height: 70px;
-            background: #161b22;
-            border-top: 1px solid #30363d;
+            background: var(--bg-glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             z-index: 1000;
         }
@@ -187,17 +249,29 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
-            color: #8b949e;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
         }
 
         .tab.active {
-            color: #f2a900;
+            color: var(--accent-gold);
+        }
+
+        .tab.active .tab-icon {
+            text-shadow: 0 0 12px rgba(242, 169, 0, 0.6);
+            transform: scale(1.1);
         }
 
         .tab-icon {
             font-size: 1.4rem;
             margin-bottom: 4px;
+            transition: transform 0.2s;
         }
 
         #remote-full-ui {
@@ -370,6 +444,7 @@
         }
 
         function switchTab(t) {
+            if (navigator.vibrate) navigator.vibrate(8);
             const isRemote = t === 'remote';
             document.getElementById('home-tab').style.display = isRemote ? 'none' : 'block';
             document.getElementById('remote-full-ui').style.display = isRemote ? 'flex' : 'none';
@@ -385,14 +460,19 @@
             }
         }
 
+        function haptic(ms = 10) {
+            if (navigator.vibrate) navigator.vibrate(ms);
+        }
+
         function runAction(type) {
+            haptic(15);
             if (!confirm('Action: ' + type + '\n실행하시겠습니까?')) return;
             fetch('/api/control/action?pin=' + userPin + '&type=' + type)
                 .then(r => {
                     if (r.status === 401) { logout(); return; }
                     return r.text();
                 })
-                .then(t => { if (t) alert('Success: ' + t); })
+                .then(t => { if (t) { haptic(30); alert('Success: ' + t); } })
                 .catch(e => alert('Error: ' + e.message));
         }
 
