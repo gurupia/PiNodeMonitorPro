@@ -53,6 +53,12 @@ namespace PiNodeMonitorWinForm
         private double _currentPriceKrw = 0;
         private double _currentTotalUsd = 0;
         private double _currentTotalKrw = 0;
+        private int _ghostCheckCounter = 0;
+        private double _lastGhostSpace = 0;
+        private GroupBox groupBoxMaintenance;
+        private CheckBox chkEnableCpuOpt;
+        private Button btnCompactDisk;
+        private Label lblGhostSpace;
         
         // Node Stats Bridge
         // Node Stats fields REMOVED
@@ -95,6 +101,9 @@ namespace PiNodeMonitorWinForm
             this.Width += 60;   // Increased width for SMS Button
             this.Text = "Pi Node Monitor Pro";
             lblLocalCpuCount.Text = $"{Environment.ProcessorCount} Threads";
+
+            InitializeMaintenanceUI();
+            LoadConfig();
 
             _priceService = new PriceService();
             
@@ -744,8 +753,38 @@ namespace PiNodeMonitorWinForm
                         else state = "Not Synced";
                         metricsSuccess = true;
                     }
+
+                    // [신규] Smart Core 스위칭 (P/E 코어 동적 할당)
+                    if (NodeUtility.Config.EnableCpuOptimization)
+                    {
+                        if (state == "Synced!") PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.ECoresOnly);
+                        else if (state.Contains("Catching up")) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly);
+                    }
                 }
                 catch { }
+
+                // [신규] Ghost Space 주기적 감축 제안 (약 10분 주기 = 200 * 3s)
+                if (_ghostCheckCounter <= 0)
+                {
+                    _lastGhostSpace = await NodeUtility.GetGhostSpaceGbAsync();
+                    this.SafeInvoke(() => {
+                        if (lblGhostSpace != null) {
+                            lblGhostSpace.Text = $"Ghost Space: {_lastGhostSpace:F2} GB";
+                            if (_lastGhostSpace >= 10.0) {
+                                lblGhostSpace.ForeColor = Color.OrangeRed;
+                                btnCompactDisk.BackColor = Color.OrangeRed;
+                                btnCompactDisk.ForeColor = Color.White;
+                                toolTip1.SetToolTip(btnCompactDisk, "10GB 이상의 빈 공간이 발견되었습니다. 최적화가 권장됩니다.");
+                            } else {
+                                lblGhostSpace.ForeColor = Color.Silver;
+                                btnCompactDisk.BackColor = Color.FromArgb(64, 64, 64);
+                                btnCompactDisk.ForeColor = Color.White;
+                            }
+                        }
+                    });
+                    _ghostCheckCounter = 200;
+                }
+                _ghostCheckCounter--;
 
                 // 5.1 Version/Build Info Independent Sync (Always run if possible)
                 if (foundRunning)
@@ -911,6 +950,45 @@ namespace PiNodeMonitorWinForm
             {
                 historyForm.ShowDialog(this);
             }
+        }
+
+        private void InitializeMaintenanceUI()
+        {
+            this.groupBoxMaintenance = new GroupBox { Text = "Performance & Maintenance", Size = new Size(230, 110), ForeColor = Color.White, Margin = new Padding(0, 0, 0, 10) };
+            this.chkEnableCpuOpt = new CheckBox { Text = "Smart Core Switching (P/E)", Location = new Point(10, 25), AutoSize = true };
+            this.chkEnableCpuOpt.CheckedChanged += (s, e) => {
+                NodeUtility.Config.EnableCpuOptimization = chkEnableCpuOpt.Checked;
+                NodeUtility.SaveConfig();
+                if (!chkEnableCpuOpt.Checked) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.All);
+            };
+            
+            this.lblGhostSpace = new Label { Text = "Ghost Space: Checking...", Location = new Point(10, 50), AutoSize = true, ForeColor = Color.Silver };
+            this.btnCompactDisk = new Button { Text = "Compact WSL2 Disk (Optimize)", Location = new Point(10, 75), Size = new Size(200, 26), BackColor = Color.FromArgb(64,64,64), FlatStyle = FlatStyle.Flat };
+            this.btnCompactDisk.Click += async (s, e) => {
+                var res = MessageBox.Show("이 작업은 WSL2와 Docker를 일시적으로 중지합니다.\n약 1~3분간 노드 서비스가 중단됩니다. 진행하시겠습니까?", "Disk Optimization", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (res == DialogResult.Yes) {
+                    btnCompactDisk.Enabled = false;
+                    btnCompactDisk.Text = "Compacting...";
+                    await NodeUtility.RunCommandAsync("wsl", "--shutdown", true);
+                    bool success = await NodeUtility.CompactWslDiskAsync();
+                    await NodeUtility.RunCommandAsync("powershell", "-Command \"Start-Process 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'\"", true);
+                    btnCompactDisk.Enabled = true;
+                    btnCompactDisk.Text = "Compact WSL2 Disk (Optimize)";
+                    _ghostCheckCounter = 0; // 즉시 재검사
+                    MessageBox.Show(success ? "최적화가 완료되었습니다." : "최적화 중 오류가 발생했습니다.", "결과");
+                }
+            };
+
+            this.groupBoxMaintenance.Controls.Add(chkEnableCpuOpt);
+            this.groupBoxMaintenance.Controls.Add(lblGhostSpace);
+            this.groupBoxMaintenance.Controls.Add(btnCompactDisk);
+            this.leftFlow.Controls.Add(groupBoxMaintenance);
+        }
+
+        private void LoadConfig()
+        {
+            NodeUtility.LoadConfig();
+            if (chkEnableCpuOpt != null) chkEnableCpuOpt.Checked = NodeUtility.Config.EnableCpuOptimization;
         }
 
         private void btnSetBonus_Click(object sender, EventArgs e)

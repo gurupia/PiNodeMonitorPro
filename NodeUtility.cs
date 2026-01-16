@@ -10,7 +10,13 @@ namespace PiNodeMonitorWinForm
     {
         public static string CurrentContainerName { get; set; } = "testnet2";
         public static string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
-        public class NodeConfig { public string CustomDockerPath { get; set; } public string CustomPiAppPath { get; set; } }
+        public class NodeConfig { 
+            public string CustomDockerPath { get; set; } 
+            public string CustomPiAppPath { get; set; } 
+            public bool EnableCpuOptimization { get; set; } = false; // 기본값 OFF
+            public bool EnableDiskWeightAlert { get; set; } = true;
+            public DateTime LastDiskCompacted { get; set; } = DateTime.MinValue;
+        }
         public static NodeConfig Config { get; private set; }
 
         static NodeUtility() { LoadConfig(); }
@@ -98,6 +104,65 @@ if ($p) {{
                 string p = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Pi Network", "user-preferences.json");
                 if (File.Exists(p)) return System.Text.RegularExpressions.Regex.Match(File.ReadAllText(p), @"""uuid""\s*:\s*""([^""]+)""").Groups[1].Value;
             } catch { } return "";
+        }
+
+        // [신규] WSL2 VHDX 실경로 탐지 (Registry 기반)
+        public static string GetWslVhdxPath() {
+            try {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Lxss")) {
+                    if (key == null) return null;
+                    foreach (var subKeyName in key.GetSubKeyNames()) {
+                        using (var subKey = key.OpenSubKey(subKeyName)) {
+                            string distName = subKey?.GetValue("DistributionName") as string;
+                            if (distName == "docker-desktop-data") {
+                                string basePath = subKey?.GetValue("BasePath") as string;
+                                if (!string.IsNullOrEmpty(basePath)) {
+                                    string vhdx = Path.Combine(basePath, "ext4.vhdx");
+                                    if (File.Exists(vhdx)) return vhdx;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch { } return null;
+        }
+
+        // [신규] Ghost Space (버려지는 용량) 계산 (GB 단위)
+        public static async Task<double> GetGhostSpaceGbAsync() {
+            string vhdxPath = GetWslVhdxPath();
+            if (string.IsNullOrEmpty(vhdxPath)) return 0;
+
+            try {
+                long physicalSize = new FileInfo(vhdxPath).Length;
+                // WSL 내부 실제 점유량 확인 (df -B1 / | tail -1)
+                string output = await RunPSAsync("wsl -d docker-desktop-data -- df -B1 / --output=used | tail -1");
+                if (long.TryParse(output.Trim(), out long usedSize)) {
+                    double diff = (double)(physicalSize - usedSize) / (1024 * 1024 * 1024);
+                    return diff > 0 ? diff : 0;
+                }
+            } catch { } return 0;
+        }
+
+        // [신규] 최적화 엔진 실행 (Selective Compact)
+        public static async Task<bool> CompactWslDiskAsync() {
+            string vhdxPath = GetWslVhdxPath();
+            if (string.IsNullOrEmpty(vhdxPath)) return false;
+
+            // 1순위: wsl --manage (v1.1.0+)
+            var versionInfo = await RunPSAsync("wsl --version");
+            if (versionInfo.Contains("1.1.0") || versionInfo.Contains("2.")) {
+                await RunCommandAsync("wsl", "--manage docker-desktop-data --compact", true);
+                return true;
+            }
+
+            // 2순위: Diskpart (Legacy)
+            string scriptPath = Path.Combine(Path.GetTempPath(), "compact_vhdx.txt");
+            string script = $"select vdisk file=\"{vhdxPath}\"\nattach vdisk readonly\ncompact vdisk\ndetach vdisk\nexit";
+            File.WriteAllText(scriptPath, script);
+            
+            await RunCommandAsync("diskpart", $"/s \"{scriptPath}\"", true);
+            try { File.Delete(scriptPath); } catch { }
+            return true;
         }
     }
 }
