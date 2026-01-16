@@ -645,38 +645,6 @@ namespace PiNodeMonitorWinForm
 
                         _statLedgerAge = mAge;
                         _statLocalBlock = mLedger.ToString();
-                        
-                        // Version/Build Info Collection (Safe)
-                        try 
-                        {
-                            // 1. Try via HTTP (31403)
-                            string infoJson = null;
-                            try { infoJson = await client.GetStringAsync("http://localhost:31403/info"); } catch { }
-
-                            // 2. Fallback via Docker Exec
-                            if (string.IsNullOrEmpty(infoJson) || !infoJson.Contains("protocol_version"))
-                            {
-                                try { infoJson = await RunDockerCommandAsync($"exec {activeContainer} curl -s --max-time 1 http://localhost:11626/info"); } catch { }
-                            }
-
-                            if (!string.IsNullOrEmpty(infoJson))
-                            {
-                                var regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)");
-                                var matchProto = regProto.Match(infoJson);
-                                if (matchProto.Success) lblProtocolVersion.SafeInvoke(() => lblProtocolVersion.Text = matchProto.Groups[1].Value);
-
-                                var regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"");
-                                var matchBuild = regBuild.Match(infoJson);
-                                if (matchBuild.Success) {
-                                    string buildString = matchBuild.Groups[1].Value;
-                                    var vMatch = System.Text.RegularExpressions.Regex.Match(buildString, @"stellar-core\s+([^\s]+)");
-                                    string displayBuild = vMatch.Success ? vMatch.Groups[1].Value : (buildString.Length > 15 ? buildString.Substring(0, 15) : buildString);
-                                    lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = displayBuild);
-                                }
-                            }
-                        }
-                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Dashboard] Version gathering failed: {ex.Message}"); }
-
                         if (mAge < 10) state = "Synced!";
                         else if (mAge < 60) state = "Catching up";
                         else state = "Not Synced";
@@ -684,6 +652,40 @@ namespace PiNodeMonitorWinForm
                     }
                 }
                 catch { }
+
+                // 5.1 Version/Build Info Independent Sync (Always run if possible)
+                if (foundRunning)
+                {
+                    try 
+                    {
+                        // A. Try via HTTP (31403)
+                        string infoJson = null;
+                        try { infoJson = await client.GetStringAsync("http://localhost:31403/info"); } catch { }
+
+                        // B. Fallback via Docker Exec (11626 is internal, but we use the active container)
+                        if (string.IsNullOrEmpty(infoJson) || !infoJson.Contains("protocol_version"))
+                        {
+                            try { infoJson = await RunDockerCommandAsync($"exec {activeContainer} curl -s --max-time 1 http://localhost:11626/info"); } catch { }
+                        }
+
+                        if (!string.IsNullOrEmpty(infoJson))
+                        {
+                            var regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)");
+                            var matchProto = regProto.Match(infoJson);
+                            if (matchProto.Success) lblProtocolVersion.SafeInvoke(() => lblProtocolVersion.Text = matchProto.Groups[1].Value);
+
+                            var regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"");
+                            var matchBuild = regBuild.Match(infoJson);
+                            if (matchBuild.Success) {
+                                string bRaw = matchBuild.Groups[1].Value;
+                                var bMatch = System.Text.RegularExpressions.Regex.Match(bRaw, @"stellar-core\s+([^\s]+)");
+                                string bDisp = bMatch.Success ? bMatch.Groups[1].Value : (bRaw.Length > 15 ? bRaw.Substring(0, 15) : bRaw);
+                                lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = bDisp);
+                            }
+                        }
+                    }
+                    catch { }
+                }
 
                 if (!metricsSuccess && foundRunning)
                 {

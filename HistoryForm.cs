@@ -21,21 +21,31 @@ namespace PiNodeMonitorWinForm
         private void InitializeComponent(string trendReport)
         {
             this.Text = "Node Availability & Bonus History";
-            this.Size = new System.Drawing.Size(750, 550);
+            this.Size = new System.Drawing.Size(750, 600);
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = System.Drawing.Color.FromArgb(45, 45, 45);
 
-            // Trend Panel
-            Panel pnlTrend = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = System.Drawing.Color.FromArgb(35, 35, 35), Padding = new Padding(10) };
+            // 1. Trend Panel (Auto-scaling with Dock)
+            Panel pnlTrend = new Panel { 
+                Dock = DockStyle.Top, 
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = System.Drawing.Color.FromArgb(35, 35, 35), 
+                Padding = new Padding(15) 
+            };
+
             Label lblTrend = new Label { 
                 Text = string.IsNullOrEmpty(trendReport) ? "Trend data not available." : trendReport,
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
+                AutoSize = true,
                 ForeColor = System.Drawing.Color.LightGreen,
                 Font = new System.Drawing.Font("Consolas", 10, System.Drawing.FontStyle.Bold)
             };
+            
             pnlTrend.Controls.Add(lblTrend);
             this.Controls.Add(pnlTrend);
 
+            // 2. Data Grid (Fill remaining space)
             _grid = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -47,7 +57,8 @@ namespace PiNodeMonitorWinForm
                 GridColor = System.Drawing.Color.FromArgb(60, 60, 60),
                 RowHeadersVisible = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BorderStyle = BorderStyle.None
+                BorderStyle = BorderStyle.None,
+                Margin = new Padding(0)
             };
             _grid.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(60, 60, 60);
             _grid.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.White;
