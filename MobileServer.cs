@@ -290,6 +290,10 @@ namespace PiNodeMonitorWinForm
                     jsonObject["p31401"] = CurrentStatus.P31401;
                     jsonObject["p31402"] = CurrentStatus.P31402;
                     jsonObject["p31403"] = CurrentStatus.P31403;
+                    jsonObject["piPriceUSD"] = CurrentStatus.PiPriceUSD;
+                    jsonObject["piPriceKRW"] = CurrentStatus.PiPriceKRW;
+                    jsonObject["totalValueUSD"] = CurrentStatus.TotalValueUSD;
+                    jsonObject["totalValueKRW"] = CurrentStatus.TotalValueKRW;
                     jsonObject["desktopVersion"] = CurrentStatus.PiAppVersion;
                     jsonObject["osVersion"] = CurrentStatus.OsVersion;
                     jsonObject["publicIp"] = CurrentStatus.PublicIp;
@@ -611,6 +615,10 @@ namespace PiNodeMonitorWinForm
         public bool P31402 { get; set; }
         public bool P31403 { get; set; }
         public double NodeBonus { get; set; }
+        public double PiPriceUSD { get; set; }
+        public double PiPriceKRW { get; set; }
+        public double TotalValueUSD { get; set; }
+        public double TotalValueKRW { get; set; }
         public string PiAppVersion { get; set; }
         public string OsVersion { get; set; }
         public double WalletBalance { get; set; }

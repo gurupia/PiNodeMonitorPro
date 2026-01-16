@@ -365,6 +365,14 @@
                         <div class='status-value' style='color:#f2a900' id='val-balance'>---</div>
                     </div>
                     <div class='status-item'>
+                        <div class='status-label'>Pi Price (IOU)</div>
+                        <div class='status-value' style='color:#2196f3; font-size:0.8rem;' id='val-price'>---</div>
+                    </div>
+                    <div class='status-item' style='grid-column: span 2;'>
+                        <div class='status-label'>Total Market Value</div>
+                        <div class='status-value' style='color:#4caf50' id='val-total-value'>---</div>
+                    </div>
+                    <div class='status-item'>
                         <div class='status-label'>CPU Usage</div>
                         <div class='status-value' id='val-cpu'>---</div>
                     </div>
@@ -553,6 +561,8 @@
                     if (document.getElementById('val-avail')) document.getElementById('val-avail').innerText = d.availability.toFixed(2) + '%';
                     if (document.getElementById('val-bonus')) document.getElementById('val-bonus').innerText = d.nodeBonus.toFixed(4);
                     if (document.getElementById('val-balance')) document.getElementById('val-balance').innerText = d.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' π';
+                    if (document.getElementById('val-price')) document.getElementById('val-price').innerText = '$' + d.piPriceUSD.toFixed(2) + ' / ' + d.piPriceKRW.toLocaleString() + '₩';
+                    if (document.getElementById('val-total-value')) document.getElementById('val-total-value').innerText = '$' + d.totalValueUSD.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' / ' + d.totalValueKRW.toLocaleString() + '₩';
                     if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
                     if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
                     if (document.getElementById('val-ip')) document.getElementById('val-ip').innerText = d.publicIp || 'Unknown';

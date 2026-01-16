@@ -38,9 +38,12 @@ namespace PiNodeMonitorWinForm
         private Button btnSaveKey;
         private Button btnChangeWallet;
         private WalletService _walletService;
+        private PriceService _priceService;
         private SmsService _smsService;
         private NodeMonitorService _monitorService;
         private TelegramBotService _botService;
+        private Label lblPrice;
+        private Label lblTotalValue;
         private NotifyIcon notifyIcon;
         private decimal _lastBalance = -1; 
         private BonusService _bonusService;
@@ -62,6 +65,12 @@ namespace PiNodeMonitorWinForm
             this.Width += 60;   // Increased width for SMS Button
             this.Text = "Pi Node Monitor Pro";
             lblLocalCpuCount.Text = $"{Environment.ProcessorCount} Threads";
+
+            _priceService = new PriceService();
+            
+            // --- Price & Total Value Labels ---
+            lblPrice = new Label { Text = "Price: $0.00", ForeColor = Color.LightSkyBlue, Font = new Font("Segoe UI", 9, FontStyle.Bold), AutoSize = true, Margin = new Padding(10, 5, 0, 0) };
+            lblTotalValue = new Label { Text = "Value: $0.00", ForeColor = Color.LimeGreen, Font = new Font("Segoe UI", 9, FontStyle.Bold), AutoSize = true, Margin = new Padding(10, 2, 0, 10) };
             
             // 1. Menu Strip Setup
             MenuStrip menuStrip = new MenuStrip();
@@ -430,6 +439,10 @@ namespace PiNodeMonitorWinForm
                 UpdateWalletBalanceAsync(); 
                 ToggleWalletEdit(false);
             };
+
+            // Add Price Labels to mainFlow (after Wallet check)
+            mainFlow.Controls.Add(lblPrice);
+            mainFlow.Controls.Add(lblTotalValue);
             if (!string.IsNullOrEmpty(_walletService.PublicKey)) {
                 txtPublicKey.Text = _walletService.PublicKey;
                 ToggleWalletEdit(false); 
@@ -522,7 +535,29 @@ namespace PiNodeMonitorWinForm
                 }
 
                 _lastBalance = dBal;
-                if (lblBalance != null) lblBalance.Text = $"Wallet: {dBal:N2} ?";
+                if (lblBalance != null) lblBalance.Text = $"Wallet: {dBal:N2} π";
+
+                // --- Sync Price & Calculate Value ---
+                var (usd, krw) = await _priceService.FetchPriceAsync();
+                if (usd > 0)
+                {
+                    double totalUsd = (double)dBal * usd;
+                    double totalKrw = (double)dBal * krw;
+
+                    this.SafeInvoke(() => {
+                        lblPrice.Text = $"Price: ${usd:F2} / {krw:N0}₩";
+                        lblTotalValue.Text = $"Value: ${totalUsd:N2} / {totalKrw:N0}₩";
+                    });
+
+                    // Update MobileServer Status for price
+                    if (MobileServer.CurrentStatus != null)
+                    {
+                        MobileServer.CurrentStatus.PiPriceUSD = usd;
+                        MobileServer.CurrentStatus.PiPriceKRW = krw;
+                        MobileServer.CurrentStatus.TotalValueUSD = totalUsd;
+                        MobileServer.CurrentStatus.TotalValueKRW = totalKrw;
+                    }
+                }
             }
         }
 
