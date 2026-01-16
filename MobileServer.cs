@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Windows.Forms;
 using System.Diagnostics;
 
@@ -274,31 +275,31 @@ namespace PiNodeMonitorWinForm
                         res.StatusCode = 401; res.Close(); return; 
                     }
 
-                    var status = CurrentStatus;
-                    var json = JsonConvert.SerializeObject(new {
-                        state = status.State,
-                        incoming = status.Incoming,
-                        outgoing = status.Outgoing,
-                        localBlock = status.LocalBlock,
-                        protocolVersion = status.ProtocolVersion,
-                        ledgerAge = status.LedgerAge,
-                        uptime = status.Uptime,
-                        availability = status.Availability,
-                        p31401 = status.P31401,
-                        p31402 = status.P31402,
-                        p31403 = status.P31403,
-                        desktopVersion = status.PiAppVersion,
-                        osVersion = status.OsVersion,
-                        balance = status.WalletBalance,
-                        cpu = status.CpuUsage,
-                        ram = status.RamUsage,
-                        publicIp = status.PublicIp,
-                        portsOk = status.PortsOk,
-                        captureMode = LastCaptureMode,
-                        screenWidth = Screen.PrimaryScreen.Bounds.Width,
-                        screenHeight = Screen.PrimaryScreen.Bounds.Height
-                    });
-                    SendResponse(res, json, "application/json");
+                    // Original: var status = CurrentStatus;
+                    JObject jsonObject = new JObject();
+                    jsonObject["state"] = CurrentStatus.State;
+                    jsonObject["incoming"] = CurrentStatus.Incoming;
+                    jsonObject["outgoing"] = CurrentStatus.Outgoing;
+                    jsonObject["localBlock"] = CurrentStatus.LocalBlock;
+                    jsonObject["nodeBonus"] = CurrentStatus.NodeBonus;
+                    jsonObject["balance"] = CurrentStatus.WalletBalance;
+                    jsonObject["cpu"] = CurrentStatus.CpuUsage;
+                    jsonObject["ram"] = CurrentStatus.RamUsage;
+                    jsonObject["uptime"] = CurrentStatus.Uptime;
+                    jsonObject["availability"] = CurrentStatus.Availability;
+                    jsonObject["p31401"] = CurrentStatus.P31401;
+                    jsonObject["p31402"] = CurrentStatus.P31402;
+                    jsonObject["p31403"] = CurrentStatus.P31403;
+                    jsonObject["desktopVersion"] = CurrentStatus.PiAppVersion;
+                    jsonObject["osVersion"] = CurrentStatus.OsVersion;
+                    jsonObject["publicIp"] = CurrentStatus.PublicIp;
+                    jsonObject["portsOk"] = CurrentStatus.PortsOk;
+                    jsonObject["ledgerAge"] = CurrentStatus.LedgerAge;
+                    jsonObject["captureMode"] = LastCaptureMode;
+                    jsonObject["screenWidth"] = Screen.PrimaryScreen.Bounds.Width;
+                    jsonObject["screenHeight"] = Screen.PrimaryScreen.Bounds.Height;
+
+                    SendResponse(res, jsonObject.ToString(), "application/json");
                 }
                 // API: Screen
                 else if (path == "/api/screen")
@@ -609,6 +610,7 @@ namespace PiNodeMonitorWinForm
         public bool P31401 { get; set; }
         public bool P31402 { get; set; }
         public bool P31403 { get; set; }
+        public double NodeBonus { get; set; }
         public string PiAppVersion { get; set; }
         public string OsVersion { get; set; }
         public double WalletBalance { get; set; }

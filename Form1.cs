@@ -789,7 +789,8 @@ namespace PiNodeMonitorWinForm
                     CpuUsage = lblCPU.Text,
                     RamUsage = lblRAM.Text,
                     PublicIp = MobileServer.PublicIpAddress,
-                    PortsOk = _statPortsOk
+                    PortsOk = _statPortsOk,
+                    NodeBonus = _currentBonus
                 };
             }
         }
@@ -814,6 +815,33 @@ namespace PiNodeMonitorWinForm
             using (var historyForm = new HistoryForm(csvPath, trend))
             {
                 historyForm.ShowDialog(this);
+            }
+        }
+
+        private void btnSetBonus_Click(object sender, EventArgs e)
+        {
+            if (double.TryParse(txtManualBonus.Text, out double manualVal))
+            {
+                _currentBonus = manualVal;
+                lblBonus.Text = $"Bonus: {_currentBonus:F4}";
+                
+                double currentAvail = _totalSeconds > 0 ? (double)_totalSyncedSeconds / _totalSeconds * 100.0 : 0;
+                bool portsOk = lblPort01.Text == "Open" && lblPort03.Text == "Open";
+                
+                _bonusService.RecordBonus(_currentBonus, currentAvail.ToString("F2"), portsOk);
+                
+                // Immediate Mobile Sync
+                if (MobileServer.CurrentStatus != null)
+                {
+                    MobileServer.CurrentStatus.NodeBonus = _currentBonus;
+                }
+                
+                txtManualBonus.BackColor = Color.DarkGreen;
+                Task.Delay(1000).ContinueWith(_ => this.SafeInvoke(() => txtManualBonus.BackColor = Color.FromArgb(30, 30, 30)));
+            }
+            else
+            {
+                MessageBox.Show("Please enter a valid numeric value for the bonus.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

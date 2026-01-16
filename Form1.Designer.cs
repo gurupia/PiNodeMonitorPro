@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -78,6 +78,8 @@ namespace PiNodeMonitorWinForm
             lblBonus = new System.Windows.Forms.Label();
             lblAvailability = new System.Windows.Forms.Label();
             lblUptime = new System.Windows.Forms.Label();
+            btnSetBonus = new System.Windows.Forms.Button();
+            txtManualBonus = new System.Windows.Forms.TextBox();
             notifyIcon1 = new NotifyIcon(components);
             groupBoxControl = new System.Windows.Forms.GroupBox();
             lblRemoteBlockNum = new System.Windows.Forms.Label();
@@ -503,6 +505,8 @@ namespace PiNodeMonitorWinForm
             // 
             groupBox6.Controls.Add(btnHelp);
             groupBox6.Controls.Add(btnShowHistory);
+            groupBox6.Controls.Add(btnSetBonus);
+            groupBox6.Controls.Add(txtManualBonus);
             groupBox6.Controls.Add(lblBonus);
             groupBox6.Controls.Add(lblAvailability);
             groupBox6.Controls.Add(lblUptime);
@@ -510,7 +514,7 @@ namespace PiNodeMonitorWinForm
             groupBox6.Location = new Point(10, 504);
             groupBox6.Margin = new Padding(0, 0, 0, 10);
             groupBox6.Name = "groupBox6";
-            groupBox6.Size = new Size(470, 70);
+            groupBox6.Size = new Size(580, 70);
             groupBox6.TabIndex = 2;
             groupBox6.TabStop = false;
             groupBox6.Text = "Session Statistics";
@@ -538,6 +542,28 @@ namespace PiNodeMonitorWinForm
             btnShowHistory.Text = "History";
             btnShowHistory.UseVisualStyleBackColor = false;
             btnShowHistory.Click += btnShowHistory_Click;
+            // 
+            // btnSetBonus
+            // 
+            btnSetBonus.BackColor = Color.FromArgb(64, 64, 64);
+            btnSetBonus.ForeColor = Color.White;
+            btnSetBonus.Location = new Point(510, 20);
+            btnSetBonus.Name = "btnSetBonus";
+            btnSetBonus.Size = new Size(52, 26);
+            btnSetBonus.TabIndex = 6;
+            btnSetBonus.Text = "Set";
+            btnSetBonus.UseVisualStyleBackColor = false;
+            btnSetBonus.Click += btnSetBonus_Click;
+            // 
+            // txtManualBonus
+            // 
+            txtManualBonus.BackColor = Color.FromArgb(30,30,30);
+            txtManualBonus.ForeColor = Color.Lime;
+            txtManualBonus.Location = new Point(440, 22);
+            txtManualBonus.Name = "txtManualBonus";
+            txtManualBonus.Size = new Size(65, 23);
+            txtManualBonus.TabIndex = 5;
+            txtManualBonus.TextAlign = HorizontalAlignment.Center;
             // 
             // lblBonus
             // 
@@ -788,6 +814,8 @@ namespace PiNodeMonitorWinForm
         private System.Windows.Forms.GroupBox groupBox6;
         private System.Windows.Forms.Label lblAvailability;
         private System.Windows.Forms.Label lblUptime;
+        private System.Windows.Forms.TextBox txtManualBonus;
+        private System.Windows.Forms.Button btnSetBonus;
         private System.Windows.Forms.Label lblBonus;
         private System.Windows.Forms.Label lblServerCpuCount;
         private System.Windows.Forms.Label labelServerCpu;

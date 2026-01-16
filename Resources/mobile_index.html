@@ -349,6 +349,10 @@
                         <div class='status-value' style='color:#f2a900' id='val-avail'>---</div>
                     </div>
                     <div class='status-item'>
+                        <div class='status-label'>Node Bonus</div>
+                        <div class='status-value' style='color:#f2a900' id='val-bonus'>---</div>
+                    </div>
+                    <div class='status-item'>
                         <div class='status-label'>Last Sync</div>
                         <div class='status-value' id='val-sync'>---</div>
                     </div>
@@ -547,6 +551,7 @@
                     document.getElementById('val-conn').innerText = d.incoming + ' In / ' + d.outgoing + ' Out';
                     if (document.getElementById('val-block')) document.getElementById('val-block').innerText = d.localBlock;
                     if (document.getElementById('val-avail')) document.getElementById('val-avail').innerText = d.availability.toFixed(2) + '%';
+                    if (document.getElementById('val-bonus')) document.getElementById('val-bonus').innerText = d.nodeBonus.toFixed(4);
                     if (document.getElementById('val-balance')) document.getElementById('val-balance').innerText = d.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' π';
                     if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
                     if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
