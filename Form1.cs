@@ -646,10 +646,19 @@ namespace PiNodeMonitorWinForm
                         _statLedgerAge = mAge;
                         _statLocalBlock = mLedger.ToString();
                         
-                        // Try to get Version/Build Info if not already set or periodically
-                        try
+                        // Version/Build Info Collection (Safe)
+                        try 
                         {
-                            string infoJson = await client.GetStringAsync("http://localhost:31403/info");
+                            // 1. Try via HTTP (31403)
+                            string infoJson = null;
+                            try { infoJson = await client.GetStringAsync("http://localhost:31403/info"); } catch { }
+
+                            // 2. Fallback via Docker Exec
+                            if (string.IsNullOrEmpty(infoJson) || !infoJson.Contains("protocol_version"))
+                            {
+                                try { infoJson = await RunDockerCommandAsync($"exec {activeContainer} curl -s --max-time 1 http://localhost:11626/info"); } catch { }
+                            }
+
                             if (!string.IsNullOrEmpty(infoJson))
                             {
                                 var regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)");
@@ -659,14 +668,14 @@ namespace PiNodeMonitorWinForm
                                 var regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"");
                                 var matchBuild = regBuild.Match(infoJson);
                                 if (matchBuild.Success) {
-                                    string fullBuild = matchBuild.Groups[1].Value;
-                                    // Extract version part: stellar-core 19.4.1 -> 19.4.1
-                                    var verMatch = System.Text.RegularExpressions.Regex.Match(fullBuild, @"stellar-core\s+([^\s]+)");
-                                    lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = verMatch.Success ? verMatch.Groups[1].Value : fullBuild);
+                                    string buildString = matchBuild.Groups[1].Value;
+                                    var vMatch = System.Text.RegularExpressions.Regex.Match(buildString, @"stellar-core\s+([^\s]+)");
+                                    string displayBuild = vMatch.Success ? vMatch.Groups[1].Value : (buildString.Length > 15 ? buildString.Substring(0, 15) : buildString);
+                                    lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = displayBuild);
                                 }
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Dashboard] Version gathering failed: {ex.Message}"); }
 
                         if (mAge < 10) state = "Synced!";
                         else if (mAge < 60) state = "Catching up";

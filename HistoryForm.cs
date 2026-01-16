@@ -26,7 +26,7 @@ namespace PiNodeMonitorWinForm
             this.BackColor = System.Drawing.Color.FromArgb(45, 45, 45);
 
             // Trend Panel
-            Panel pnlTrend = new Panel { Dock = DockStyle.Top, Height = 100, BackColor = System.Drawing.Color.FromArgb(35, 35, 35), Padding = new Padding(10) };
+            Panel pnlTrend = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = System.Drawing.Color.FromArgb(35, 35, 35), Padding = new Padding(10) };
             Label lblTrend = new Label { 
                 Text = string.IsNullOrEmpty(trendReport) ? "Trend data not available." : trendReport,
                 Dock = DockStyle.Fill,
