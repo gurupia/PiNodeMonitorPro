@@ -58,6 +58,13 @@ namespace PiNodeMonitorWinForm
         private Button btnSecureTunnel;
         private Label lblTunnelLink;
         
+        // Performance: Pre-compiled Regex Patterns
+        private static readonly System.Text.RegularExpressions.Regex _regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex _regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex _regStellarCore = new System.Text.RegularExpressions.Regex(@"stellar-core\s+([^\s]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex _regNum = new System.Text.RegularExpressions.Regex("\"num\"\\s*:\\s*(\\d+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex _regAuth = new System.Text.RegularExpressions.Regex("\"authenticated_count\"\\s*:\\s*(\\d+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         public Form1()
         {
             // Performance Optimization for Hybrid CPU (i5-14600K)
@@ -602,34 +609,25 @@ namespace PiNodeMonitorWinForm
                 TimeSpan t = TimeSpan.FromSeconds(_totalSeconds);
                 lblUptime.Text = $"Uptime: {t:hh\\:mm\\:ss}";
 
-                // 3. Docker Status Check
+                // 3. Docker Status Check (Optimized: Single Process Call)
                 bool foundRunning = false;
                 string activeContainer = "";
                 try
                 {
-                    string[] containers = { "pi-consensus", "stellar-dummy", "pi-node", "stellar-core", "testnet2" };
-                    foreach (var name in containers)
+                    // Batch Check: Get all running container names in one go
+                    string psOutput = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
+                    if (!string.IsNullOrWhiteSpace(psOutput))
                     {
-                        string inspect = await RunDockerCommandAsync($"inspect -f \"{{{{.State.Running}}}}\" {name}");
-                        if (!string.IsNullOrWhiteSpace(inspect) && inspect.Trim().ToLower().Contains("true"))
-                        {
-                            activeContainer = name;
-                            foundRunning = true;
-                            break;
-                        }
-                    }
+                        var runningContainers = new HashSet<string>(psOutput.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries));
+                        
+                        // Priority Check
+                        if (runningContainers.Contains("pi-consensus")) activeContainer = "pi-consensus";
+                        else if (runningContainers.Contains("stellar-dummy")) activeContainer = "stellar-dummy";
+                        else if (runningContainers.Contains("pi-node")) activeContainer = "pi-node";
+                        else if (runningContainers.Contains("testnet2")) activeContainer = "testnet2";
+                        else if (runningContainers.Contains("stellar-core")) activeContainer = "stellar-core";
 
-                    if (!foundRunning)
-                    {
-                        string ps = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
-                        if (!string.IsNullOrWhiteSpace(ps))
-                        {
-                            if (ps.Contains("pi-consensus")) activeContainer = "pi-consensus";
-                            else if (ps.Contains("stellar-dummy")) activeContainer = "stellar-dummy";
-                            else if (ps.Contains("testnet2")) activeContainer = "testnet2";
-                            
-                            if (!string.IsNullOrEmpty(activeContainer)) foundRunning = true;
-                        }
+                        if (!string.IsNullOrEmpty(activeContainer)) foundRunning = true;
                     }
 
                     NodeUtility.CurrentContainerName = foundRunning ? activeContainer : "pi-consensus";
@@ -734,15 +732,13 @@ namespace PiNodeMonitorWinForm
 
                         if (!string.IsNullOrEmpty(infoJson))
                         {
-                            var regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)");
-                            var matchProto = regProto.Match(infoJson);
+                            var matchProto = _regProto.Match(infoJson);
                             if (matchProto.Success) lblProtocolVersion.SafeInvoke(() => lblProtocolVersion.Text = matchProto.Groups[1].Value);
 
-                            var regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"");
-                            var matchBuild = regBuild.Match(infoJson);
+                            var matchBuild = _regBuild.Match(infoJson);
                             if (matchBuild.Success) {
                                 string bRaw = matchBuild.Groups[1].Value;
-                                var bMatch = System.Text.RegularExpressions.Regex.Match(bRaw, @"stellar-core\s+([^\s]+)");
+                                var bMatch = _regStellarCore.Match(bRaw);
                                 string bDisp = bMatch.Success ? bMatch.Groups[1].Value : (bRaw.Length > 15 ? bRaw.Substring(0, 15) : bRaw);
                                 lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = bDisp);
                             }
@@ -759,12 +755,10 @@ namespace PiNodeMonitorWinForm
                         if (!string.IsNullOrWhiteSpace(infoJson) && infoJson.Contains("ledger"))
                         {
                             state = "Synced (Docker)";
-                            var regNum = new System.Text.RegularExpressions.Regex("\"num\"\\s*:\\s*(\\d+)");
-                            var matchNum = regNum.Match(infoJson);
+                            var matchNum = _regNum.Match(infoJson);
                             if (matchNum.Success) _statLocalBlock = matchNum.Groups[1].Value;
 
-                            var regAuth = new System.Text.RegularExpressions.Regex("\"authenticated_count\"\\s*:\\s*(\\d+)");
-                            var matchAuth = regAuth.Match(infoJson);
+                            var matchAuth = _regAuth.Match(infoJson);
                             if (matchAuth.Success && int.TryParse(matchAuth.Groups[1].Value, out int totalAuth))
                             {
                                 outgoing = (totalAuth > 8) ? 8 : totalAuth;
