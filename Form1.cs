@@ -645,6 +645,29 @@ namespace PiNodeMonitorWinForm
 
                         _statLedgerAge = mAge;
                         _statLocalBlock = mLedger.ToString();
+                        
+                        // Try to get Version/Build Info if not already set or periodically
+                        try
+                        {
+                            string infoJson = await client.GetStringAsync("http://localhost:31403/info");
+                            if (!string.IsNullOrEmpty(infoJson))
+                            {
+                                var regProto = new System.Text.RegularExpressions.Regex("\"protocol_version\"\\s*:\\s*(\\d+)");
+                                var matchProto = regProto.Match(infoJson);
+                                if (matchProto.Success) lblProtocolVersion.SafeInvoke(() => lblProtocolVersion.Text = matchProto.Groups[1].Value);
+
+                                var regBuild = new System.Text.RegularExpressions.Regex("\"build\"\\s*:\\s*\"([^\"]+)\"");
+                                var matchBuild = regBuild.Match(infoJson);
+                                if (matchBuild.Success) {
+                                    string fullBuild = matchBuild.Groups[1].Value;
+                                    // Extract version part: stellar-core 19.4.1 -> 19.4.1
+                                    var verMatch = System.Text.RegularExpressions.Regex.Match(fullBuild, @"stellar-core\s+([^\s]+)");
+                                    lblStellarBuild.SafeInvoke(() => lblStellarBuild.Text = verMatch.Success ? verMatch.Groups[1].Value : fullBuild);
+                                }
+                            }
+                        }
+                        catch { }
+
                         if (mAge < 10) state = "Synced!";
                         else if (mAge < 60) state = "Catching up";
                         else state = "Not Synced";
