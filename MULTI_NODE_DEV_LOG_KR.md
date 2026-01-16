@@ -169,6 +169,19 @@
 -   **Docker 호출 효율화 (Batching)**: 컨테이너 상태를 확인하기 위해 반복 호출되던 Docker CLI 명령을 단일 호출(`docker ps`)로 통합하여 프로세스 생성 횟수를 50% 이상 절감.
 -   **Regex 엔진 최적화**: 런타임마다 반복 컴파일되던 정규식을 `static readonly` 필드로 전환하여 메모리 할당 및 파싱 오버헤드 제거.
 
+### **[v1.6.0] - 2026-01-16: Electron App Expansion**
+공식 Pi Node 앱(`pi-network-desktop`)의 소스 코드를 확장하여 편의 기능을 주입했습니다. (MIT License 기반 Customization)
+
+-   **Auto-Launch Integration**: 공식 Pi Node 앱 실행 시, `PiNodeMonitorWinForm` 관제 도구가 자동으로 함께 실행되도록 연동. (main.js Injection)
+-   **DevTools Unleashed**: `Ctrl+Shift+I` 단축키를 통해 Electron 내부 브라우저의 개발자 도구를 활성화하여 네트워크 및 렌더링 디버깅 환경 마련.
+
+### **[v1.7.0] - 2026-01-16: Project Structure Refactoring**
+`app.asar-repack` 내부에 혼재되어 있던 Electron 원본 코드와 C# 커스텀 프로젝트를 명확히 분리하여 유지보수성 향상.
+
+-   **Source Isolation**: Electron 앱(`dist`, `package.json`)을 `app.asar-custom` 폴더로 격리.
+-   **Reference Update**: 폴더 구조 변경에 따라 `main-enhancer.js`의 모니터링 툴 실행 경로를 `../../../` 깊이로 수정하여 연결성 유지.
+-   **Deployment Automation**: `deploy_and_run.bat` 스크립트를 통해 `app.asar` 교체뿐만 아니라 `PiNodeMonitorWinForm` 바이너리까지 설치 경로로 자동 배포 성공.
+
 ---
 
 ## 7. 향후 로드맵 (Roadmap)

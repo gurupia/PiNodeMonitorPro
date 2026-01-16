@@ -53,6 +53,10 @@ namespace PiNodeMonitorWinForm
         private double _currentPriceKrw = 0;
         private double _currentTotalUsd = 0;
         private double _currentTotalKrw = 0;
+        
+        // Node Stats Bridge
+        // Node Stats fields REMOVED
+
 
         // Cloudflare Tunnel (Linked to MobileServer)
         private Button btnSecureTunnel;
@@ -71,6 +75,21 @@ namespace PiNodeMonitorWinForm
             PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly);
 
             InitializeComponent();
+            
+            // Event Bindings
+            this.Resize += Form1_Resize;
+            this.notifyIcon = new NotifyIcon();
+            this.notifyIcon.Icon = SystemIcons.Application; 
+            this.notifyIcon.Text = "Pi Node Monitor Pro";
+            this.notifyIcon.MouseDoubleClick += notifyIcon_MouseDoubleClick;
+
+            // Context Menu for Tray Icon
+            ContextMenuStrip trayMenu = new ContextMenuStrip();
+            trayMenu.Items.Add("열기 (Open)", null, (s, e) => { this.Show(); this.WindowState = FormWindowState.Normal; notifyIcon.Visible = false; });
+            trayMenu.Items.Add("-");
+            trayMenu.Items.Add("종료 (Exit)", null, (s, e) => { Application.Exit(); });
+            this.notifyIcon.ContextMenuStrip = trayMenu;
+
             client.Timeout = TimeSpan.FromSeconds(3);
             this.Height += 120; // Increased height for Wallet UI + Footer
             this.Width += 60;   // Increased width for SMS Button
@@ -443,6 +462,9 @@ namespace PiNodeMonitorWinForm
             };
             mainFlow.Controls.Add(lblTunnelLink);
 
+            // 5. Node Stats Row REMOVED as per user request
+
+
             // Rest of Toggle Logic
             Action<bool> ToggleWalletEdit = (editing) => {
                 txtPublicKey.Visible = editing;
@@ -533,6 +555,7 @@ namespace PiNodeMonitorWinForm
 
             // Restore/Force Specific Colors
             if (lblBalance != null) lblBalance.ForeColor = Color.Gold;
+
             
             // TextBoxes
             if (txtPublicKey != null) {
@@ -597,14 +620,23 @@ namespace PiNodeMonitorWinForm
             }
         }
 
+        // Flag to prevent re-entrancy overlap
+        private bool _isUpdating = false;
+
         private async Task UpdateDashboardAsync()
         {
+            if (_isUpdating) return; 
+            _isUpdating = true;
+
             try
             {
                 // 1. Wallet Balance Update (Periodic)
                 try { await UpdateWalletBalanceAsync(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Dashboard] Wallet fail: {ex.Message}"); }
 
-                // 2. Uptime Tick
+                // 2. Node Stats REMOVED
+
+
+                // 2.1 Uptime Tick
                 _totalSeconds += 3;
                 TimeSpan t = TimeSpan.FromSeconds(_totalSeconds);
                 lblUptime.Text = $"Uptime: {t:hh\\:mm\\:ss}";
@@ -827,6 +859,7 @@ namespace PiNodeMonitorWinForm
             }
             finally
             {
+                _isUpdating = false;
                 // CRITICAL: Always sync what we have to MobileServer
                 MobileServer.CurrentStatus = new NodeStatusData
                 {
@@ -1093,6 +1126,22 @@ namespace PiNodeMonitorWinForm
 
             settingsForm.Controls.AddRange(new Control[] { lblDocker, txtDocker, btnDocker, lblPi, txtPi, btnPi, btnSave });
             settingsForm.ShowDialog();
+        }
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                this.Hide();
+                if (notifyIcon != null) notifyIcon.Visible = true;
+            }
+        }
+
+        private void notifyIcon_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            if (notifyIcon != null) notifyIcon.Visible = false;
         }
     }
 }

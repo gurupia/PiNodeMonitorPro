@@ -80,7 +80,19 @@ if ($p) {{
         }
 
         public static void RebootSystem() => Process.Start("shutdown", "/r /t 5");
-        public static void MinimizeProcess(string n) { /* Skip PS */ }
+        public static void MinimizeProcess(string name) { 
+            try {
+                string script = $@"
+$p = Get-Process '{name}' -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowHandle -ne 0 }} | Select-Object -First 1
+if ($p) {{
+    $sig = '[DllImport(""user32.dll"")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
+    $type = Add-Type -MemberDefinition $sig -Name ""Win32Min"" -Namespace ""Gurupia"" -PassThru
+    $type::ShowWindowAsync($p.MainWindowHandle, 6) # SW_MINIMIZE = 6
+}}";
+                string b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+                Process.Start(new ProcessStartInfo("powershell", $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {b64}") { CreateNoWindow = true, UseShellExecute = false });
+            } catch { }
+        }
         public static async Task<string> GetNodeUuidAsync() {
             try {
                 string p = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Pi Network", "user-preferences.json");
