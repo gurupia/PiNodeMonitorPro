@@ -345,32 +345,20 @@
                         <div class='status-value' id='val-block'>---</div>
                     </div>
                     <div class='status-item'>
-                        <div class='status-label'>Incoming</div>
-                        <div class='status-value' id='val-in'>---</div>
-                    </div>
-                    <div class='status-item'>
-                        <div class='status-label'>Outgoing</div>
-                        <div class='status-value' id='val-out'>---</div>
-                    </div>
-                    <div class='status-item'>
-                        <div class='status-label'>Public IP</div>
-                        <div class='status-value' id='val-ip' style='font-size:0.9rem'>---</div>
-                    </div>
-                    <div class='status-item'>
-                        <div class='status-label'>Connectivity</div>
-                        <div class='status-value' id='val-ports'>---</div>
+                        <div class='status-label'>Availability</div>
+                        <div class='status-value' style='color:#f2a900' id='val-avail'>---</div>
                     </div>
                     <div class='status-item'>
                         <div class='status-label'>Last Sync</div>
                         <div class='status-value' id='val-sync'>---</div>
                     </div>
                     <div class='status-item'>
-                        <div class='status-label'>Pi Balance</div>
-                        <div class='status-value' style='color:#f2a900' id='val-balance'>---</div>
+                        <div class='status-label'>Public IP</div>
+                        <div class='status-value' id='val-ip' style='font-size:0.9rem'>---</div>
                     </div>
                     <div class='status-item'>
-                        <div class='status-label'>Node Bonus</div>
-                        <div class='status-value' style='color:#f2a900' id='val-bonus'>---</div>
+                        <div class='status-label'>Pi Balance</div>
+                        <div class='status-value' style='color:#f2a900' id='val-balance'>---</div>
                     </div>
                     <div class='status-item'>
                         <div class='status-label'>CPU Usage</div>
@@ -380,10 +368,39 @@
                         <div class='status-label'>RAM Usage</div>
                         <div class='status-value' id='val-ram'>---</div>
                     </div>
-                    <div class='status-item'>
-                        <div class='status-label'>Uptime</div>
-                        <div class='status-value' style='font-size:0.9rem' id='val-uptime'>---</div>
+                    <div class='status-item' style='grid-column: span 2;'>
+                        <div class='status-label'>Connections (In/Out)</div>
+                        <div class='status-value' id='val-conn'>---</div>
                     </div>
+                </div>
+            </div>
+
+            <div class='card'>
+                <div class='card-title'>PORT CONNECTIVITY (31401-31403)</div>
+                <div style='display:flex; justify-content:space-between; gap:10px;'>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31401</div>
+                        <div class='status-value' id='port-31401' style='font-size:1rem;'>---</div>
+                    </div>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31402</div>
+                        <div class='status-value' id='port-31402' style='font-size:1rem;'>---</div>
+                    </div>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31403</div>
+                        <div class='status-value' id='port-31403' style='font-size:1rem;'>---</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class='card'>
+                <div class='card-title'>SYSTEM ENVIRONMENT</div>
+                <div style='font-size:0.85rem; color:var(--text-secondary); line-height:1.6;'>
+                    <div>Desktop Version: <span id='env-version'
+                            style='color:var(--accent-blue); font-weight:bold;'>---</span></div>
+                    <div>Operating System: <span id='env-os' style='color:var(--text-primary);'>---</span></div>
+                    <div style='margin-top:5px;'>Uptime: <span id='val-uptime'
+                            style='color:var(--text-primary);'>---</span></div>
                 </div>
             </div>
 
@@ -396,9 +413,8 @@
                 <button class='action-btn secondary' onclick='runAction("restart_pi")'><i>🥧</i> Restart Pi App</button>
             </div>
 
-            <div class='card'>
-                <div class='card-title'>LIVE MONITOR (Tap to Remote)</div>
-                <img id='remote-thumb' src='' onclick='switchTab("remote")' style='width:100%; border-radius:8px;'>
+            <div style='text-align:center; padding:10px; opacity:0.5; font-size:0.7rem; letter-spacing:1px;'>
+                PI NODE ULTIMATE MONITOR v0.5.4
             </div>
         </div>
 
@@ -528,19 +544,24 @@
                 .then(d => {
                     svrW = d.screenWidth; svrH = d.screenHeight;
                     document.getElementById('val-state').innerText = d.state;
-                    document.getElementById('val-in').innerText = d.incoming;
-                    document.getElementById('val-out').innerText = d.outgoing;
+                    document.getElementById('val-conn').innerText = d.incoming + ' In / ' + d.outgoing + ' Out';
                     if (document.getElementById('val-block')) document.getElementById('val-block').innerText = d.localBlock;
-                    if (document.getElementById('val-bonus')) document.getElementById('val-bonus').innerText = d.nodeBonus.toFixed(4);
+                    if (document.getElementById('val-avail')) document.getElementById('val-avail').innerText = d.availability.toFixed(2) + '%';
                     if (document.getElementById('val-balance')) document.getElementById('val-balance').innerText = d.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' π';
                     if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
                     if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
                     if (document.getElementById('val-ip')) document.getElementById('val-ip').innerText = d.publicIp || 'Unknown';
-                    if (document.getElementById('val-ports')) {
-                        const el = document.getElementById('val-ports');
-                        el.innerText = d.portsOk ? 'HEALTHY' : 'CHECKING';
-                        el.className = d.portsOk ? 'status-value success' : 'status-value';
-                    }
+
+                    // Port Status
+                    const updatePort = (id, open) => {
+                        const el = document.getElementById('port-' + id);
+                        el.innerText = open ? 'OPEN' : 'CLOSED';
+                        el.style.color = open ? 'var(--accent-green)' : '#da3633';
+                    };
+                    updatePort('31401', d.p31401);
+                    updatePort('31402', d.p31402);
+                    updatePort('31403', d.p31403);
+
                     if (document.getElementById('val-sync')) {
                         const age = d.ledgerAge;
                         const el = document.getElementById('val-sync');
@@ -550,6 +571,8 @@
                         el.className = age < 20 ? 'status-value success' : 'status-value';
                     }
                     if (document.getElementById('val-uptime')) document.getElementById('val-uptime').innerText = d.uptime;
+                    if (document.getElementById('env-version')) document.getElementById('env-version').innerText = d.desktopVersion;
+                    if (document.getElementById('env-os')) document.getElementById('env-os').innerText = d.osVersion;
 
                     document.getElementById('status-bar').innerText = 'D:' + d.state + ' | S:' + svrW + 'x' + svrH + ' | P:' + userPin;
 
@@ -564,7 +587,8 @@
                 .then(r => r.blob())
                 .then(blob => {
                     const url = URL.createObjectURL(blob);
-                    document.getElementById('remote-thumb').src = url;
+                    const thumb = document.getElementById('remote-thumb');
+                    if (thumb) thumb.src = url;
                 }).catch(() => { });
         }
 

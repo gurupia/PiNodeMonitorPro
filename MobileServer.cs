@@ -283,7 +283,12 @@ namespace PiNodeMonitorWinForm
                         protocolVersion = status.ProtocolVersion,
                         ledgerAge = status.LedgerAge,
                         uptime = status.Uptime,
-                        nodeBonus = status.NodeBonus,
+                        availability = status.Availability,
+                        p31401 = status.P31401,
+                        p31402 = status.P31402,
+                        p31403 = status.P31403,
+                        desktopVersion = status.PiAppVersion,
+                        osVersion = status.OsVersion,
                         balance = status.WalletBalance,
                         cpu = status.CpuUsage,
                         ram = status.RamUsage,
@@ -600,7 +605,12 @@ namespace PiNodeMonitorWinForm
         public string ProtocolVersion { get; set; }
         public int LedgerAge { get; set; }
         public string Uptime { get; set; }
-        public double NodeBonus { get; set; }
+        public double Availability { get; set; }
+        public bool P31401 { get; set; }
+        public bool P31402 { get; set; }
+        public bool P31403 { get; set; }
+        public string PiAppVersion { get; set; }
+        public string OsVersion { get; set; }
         public double WalletBalance { get; set; }
         public string CpuUsage { get; set; }
         public string RamUsage { get; set; }
