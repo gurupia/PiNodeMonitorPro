@@ -38,7 +38,119 @@
             border-bottom: 1px solid var(--border-glow);
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 1000;
+        }
+
+        /* --- Dual Mode Layout System --- */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Base */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: rgba(15, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(242, 169, 0, 0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #app-container.sidebar-open #sidebar {
+            transform: translateX(280px);
+        }
+
+        #sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+            z-index: 1500;
+        }
+
+        #app-container.sidebar-open #sidebar-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Sidebar Elements */
+        .sidebar-header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .menu-item i {
+            margin-right: 15px;
+            font-style: normal;
+            font-size: 1.2rem;
+        }
+
+        .menu-item.active {
+            background: rgba(242, 169, 0, 0.15);
+            color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        .menu-item:active {
+            transform: scale(0.98);
+        }
+
+        .sidebar-footer {
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mode Specific Styles */
+        .ui-pro #home-tab .card {
+            display: none;
+        }
+
+        .ui-pro #home-tab .card.active-view {
+            display: block;
+        }
+
+        /* Hamburger Button */
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: var(--accent-gold);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 10px;
+            margin-left: -10px;
         }
 
         .logo {
@@ -321,9 +433,31 @@
         <button class='action-btn primary' style='width:160px;' onclick='verifyPin()'>UNLOCK</button>
     </div>
 
-    <div id='dashboard-ui'>
+    <div id='app-container' class='ui-classic'>
+        <div id='sidebar-overlay' onclick='toggleSidebar()'></div>
+        <div id='sidebar'>
+            <div class='sidebar-header'>
+                <div style='color:var(--accent-gold); font-weight:bold; font-size:1.1rem;'>Pi Node <span
+                        style='color:var(--text-primary)'>Pro</span></div>
+                <div style='font-size:0.75rem; color:var(--text-secondary);' id='sidebar-node-info'>-- | --</div>
+            </div>
+            <div class='sidebar-menu'>
+                <div class='menu-item active' id='menu-dashboard' onclick='showView("dashboard")'><i>📊</i> Dashboard
+                </div>
+                <div class='menu-item' id='menu-remote' onclick='showView("remote")'><i>🖥️</i> Remote Control</div>
+                <div class='menu-item' id='menu-macros' onclick='showView("macros")'><i>⚡</i> Quick Macros</div>
+                <div class='menu-item' id='menu-settings' onclick='showView("settings")'><i>⚙️</i> Settings</div>
+            </div>
+            <div class='sidebar-footer'>
+                <button class='action-btn secondary' style='width:100%; margin-bottom:10px;' onclick='toggleUIMode()'>
+                    <span id='mode-btn-text'>Switch to PRO Mode</span>
+                </button>
+            </div>
+        </div>
+
         <div id='header'>
-            <div class='logo'><span>PI</span> Sentinel</div>
+            <button class='menu-toggle' onclick='toggleSidebar()'>☰</button>
+            <div class='logo' style='margin-left:10px;'><span>PI</span> Sentinel</div>
             <div style='margin-left:auto; display:flex; gap:10px; align-items:center;'>
                 <div style='font-size:0.8rem; background:#30363d; padding:4px 10px; border-radius:20px;'
                     id='pin-display'>PIN: --</div>
@@ -557,7 +691,66 @@
                 }).catch(() => { });
         }
 
+        let uiMode = localStorage.getItem('sentinel_ui_mode') || 'classic';
+
+        function toggleSidebar() {
+            haptic(5);
+            document.getElementById('app-container').classList.toggle('sidebar-open');
+        }
+
+        function toggleUIMode() {
+            haptic(15);
+            uiMode = (uiMode === 'classic') ? 'pro' : 'classic';
+            localStorage.setItem('sentinel_ui_mode', uiMode);
+            applyUIMode();
+            toggleSidebar();
+        }
+
+        function applyUIMode() {
+            const container = document.getElementById('app-container');
+            const btnText = document.getElementById('mode-btn-text');
+
+            if (uiMode === 'pro') {
+                container.classList.remove('ui-classic');
+                container.classList.add('ui-pro');
+                btnText.innerText = 'Switch to CLASSIC Mode';
+                showView('dashboard'); // Default to dashboard in Pro mode
+            } else {
+                container.classList.remove('ui-pro');
+                container.classList.add('ui-classic');
+                btnText.innerText = 'Switch to PRO Mode';
+                // Reset all cards to visible in Classic mode
+                const cards = document.querySelectorAll('#home-tab .card');
+                cards.forEach(c => c.classList.remove('active-view'));
+            }
+        }
+
+        function showView(viewId) {
+            haptic(8);
+            if (uiMode === 'pro') {
+                const cards = document.querySelectorAll('#home-tab .card');
+                cards.forEach(c => c.classList.remove('active-view'));
+
+                // Map views to cards
+                if (viewId === 'dashboard') {
+                    document.querySelectorAll('#home-tab .card:nth-child(1), #home-tab .card:nth-child(2), #home-tab .card:nth-child(3)').forEach(c => c.classList.add('active-view'));
+                } else if (viewId === 'remote') {
+                    switchTab('remote'); // Trigger old remote tab logic
+                    document.getElementById('app-container').classList.remove('sidebar-open');
+                    return;
+                } else if (viewId === 'settings') {
+                    document.querySelectorAll('#home-tab .card:nth-last-child(2), #home-tab .card:nth-last-child(1)').forEach(c => c.classList.add('active-view'));
+                }
+
+                // Update active menu
+                document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+                document.getElementById('menu-' + viewId).classList.add('active');
+            }
+            document.getElementById('app-container').classList.remove('sidebar-open');
+        }
+
         function startSession() {
+            applyUIMode(); // Initialize UI Mode
             remoteLog('Script initialized. PIN: ' + userPin);
             document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
             updateStatus();
@@ -566,7 +759,7 @@
             setInterval(updateStatus, 5000);
             setInterval(loadNextThumb, 3000);
             setInterval(updatePriceFromJS, 600000); // 10 min interval
-            remoteLog('Session started. PIN in use.');
+            remoteLog('Session started. PIN in use. Mode: ' + uiMode);
         }
 
         function updateStatus() {
