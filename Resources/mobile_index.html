@@ -142,7 +142,63 @@
             display: block;
         }
 
-        /* Hamburger Button */
+        /* Mode Specific Navigation Behavior */
+        .ui-pro #tabs {
+            display: none !important;
+        }
+
+        .ui-pro #app-container {
+            padding-bottom: 0 !important;
+        }
+
+        .ui-classic #tabs {
+            display: flex;
+        }
+
+        #fleet-tab {
+            display: none;
+        }
+
+        .node-card {
+            background: var(--bg-glass);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .node-card.offline {
+            opacity: 0.6;
+            border-color: #da3633;
+        }
+
+        .node-card.active {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 15px rgba(242, 169, 0, 0.2);
+        }
+
+        .node-info {
+            flex: 1;
+        }
+
+        .node-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .dot-online {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .dot-offline {
+            background: #da3633;
+        }
+
         .menu-toggle {
             background: none;
             border: none;
@@ -445,6 +501,7 @@
                 <div class='menu-item active' id='menu-dashboard' onclick='showView("dashboard")'><i>📊</i> Dashboard
                 </div>
                 <div class='menu-item' id='menu-remote' onclick='showView("remote")'><i>🖥️</i> Remote Control</div>
+                <div class='menu-item' id='menu-fleet' onclick='showView("fleet")'><i>🚢</i> Fleet View</div>
                 <div class='menu-item' id='menu-macros' onclick='showView("macros")'><i>⚡</i> Quick Macros</div>
                 <div class='menu-item' id='menu-settings' onclick='showView("settings")'><i>⚙️</i> Settings</div>
             </div>
@@ -584,6 +641,47 @@
                 ---</div>
         </div>
 
+
+
+        <div id='fleet-tab' class='container' style='display:none;'>
+            <div class='card' style='margin-bottom:15px; background: rgba(255,193,7,0.05);'>
+                <div class='card-title'>🚢 NODE FLEET ( 함대 제어 )</div>
+                <div id='fleet-list'>
+                    <!-- Fleet nodes injected here -->
+                </div>
+                <button class='action-btn primary' onclick='openAddNodeModal()' style='margin-top:15px; width:100%;'>
+                    <i>➕</i> 새 노드(터널) 등록하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Node Modal -->
+        <div id='node-modal' class='overlay'
+            style='display:none; justify-content:center; align-items:center; z-index:2000;'>
+            <div class='card' style='width:90%; max-width:400px; animation: slideUp 0.3s ease;'>
+                <div class='card-title'>새 노드 등록</div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>노드 별칭 (예: 거실컴, 노트북)</label>
+                    <input type='text' id='node-alias' placeholder='Alias'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>터널 URL (Cloudflare URL)</label>
+                    <input type='text' id='node-url' placeholder='https://xxx.trycloudflare.com'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>접속 PIN (기본: 0000)</label>
+                    <input type='number' id='node-pin' placeholder='0000' value='0000'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='display:flex; gap:10px;'>
+                    <button class='action-btn secondary' style='flex:1;' onclick='closeAddNodeModal()'>취소</button>
+                    <button class='action-btn primary' style='flex:1;' onclick='saveNewNode()'>등록</button>
+                </div>
+            </div>
+        </div>
+
         <div id='tabs'>
             <div class='tab active' id='tab-home' onclick='switchTab("home")'>
                 <div class='tab-icon'>🏠</div>
@@ -592,6 +690,10 @@
             <div class='tab' id='tab-remote' onclick='switchTab("remote")'>
                 <div class='tab-icon'>📺</div>
                 <div>Remote</div>
+            </div>
+            <div class='tab' id='tab-fleet' onclick='switchTab("fleet")'>
+                <div class='tab-icon'>🚢</div>
+                <div>Fleet</div>
             </div>
         </div>
     </div>
@@ -613,19 +715,27 @@
         let isLoopRunning = false;
         let svrW = 1920, svrH = 1080;
 
-        function logout() {
-            remoteLog('Session RESET requested.');
-            userPin = '';
-            isRemoteActive = false;
-            localStorage.removeItem('sentinel_pin');
-            location.href = window.location.pathname;
-        }
+        let fleetNodes = JSON.parse(localStorage.getItem('sentinel_fleet')) || [
+            { alias: 'Main Node (Current)', url: '', pin: userPin || '0000', active: true }
+        ];
+        // Migration for old data (v1.4.2 -> v1.4.3)
+        fleetNodes.forEach(n => { if (!n.pin) n.pin = '0000'; });
 
-        if (!userPin) {
-            document.getElementById('pin-overlay').style.display = 'flex';
-            document.getElementById('dashboard-ui').style.display = 'none';
-        } else {
-            startSession();
+        let currentNodeUrl = ''; // Default is current server
+
+        function startSession() {
+            applyUIMode(); // Initialize UI Mode
+            loadNodes();   // Load fleet
+            remoteLog('Script initialized. PIN: ' + userPin);
+            document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
+            updateStatus();
+            loadNextThumb();
+            updatePriceFromJS();
+            setInterval(updateStatus, 5000);
+            setInterval(loadNextThumb, 3000);
+            setInterval(updatePriceFromJS, 600000); // 10 min interval
+            setInterval(checkNodesHealth, 15000);   // Fleet health check
+            remoteLog('Session started. PIN in use. Mode: ' + uiMode);
         }
 
         function verifyPin() {
@@ -638,19 +748,24 @@
         }
 
         function switchTab(t) {
-            if (navigator.vibrate) navigator.vibrate(8);
+            haptic(8);
             const isRemote = t === 'remote';
-            document.getElementById('home-tab').style.display = isRemote ? 'none' : 'block';
+            const isFleet = t === 'fleet';
+
+            document.getElementById('home-tab').style.display = (isRemote || isFleet) ? 'none' : 'block';
             document.getElementById('remote-full-ui').style.display = isRemote ? 'flex' : 'none';
-            document.getElementById('tab-home').className = isRemote ? 'tab' : 'tab active';
-            document.getElementById('tab-remote').className = isRemote ? 'tab active' : 'tab';
+            document.getElementById('fleet-tab').style.display = isFleet ? 'block' : 'none';
+
+            document.getElementById('tab-home').className = (t === 'home') ? 'tab active' : 'tab';
+            document.getElementById('tab-remote').className = (t === 'remote') ? 'tab active' : 'tab';
+            document.getElementById('tab-fleet').className = (t === 'fleet') ? 'tab active' : 'tab';
 
             isRemoteActive = isRemote;
             if (isRemote) {
-                remoteLog('Switched to REMOTE. Starting BLOB loop.');
+                remoteLog('Switched to REMOTE.');
                 loadNextImage();
-            } else {
-                remoteLog('Switched to HOME.');
+            } else if (isFleet) {
+                renderFleetList();
             }
         }
 
@@ -731,40 +846,138 @@
                 const cards = document.querySelectorAll('#home-tab .card');
                 cards.forEach(c => c.classList.remove('active-view'));
 
+                document.getElementById('home-tab').style.display = 'block';
+                document.getElementById('remote-full-ui').style.display = 'none';
+                document.getElementById('fleet-tab').style.display = 'none';
+
                 // Map views to cards
                 if (viewId === 'dashboard') {
-                    document.querySelectorAll('#home-tab .card:nth-child(1), #home-tab .card:nth-child(2), #home-tab .card:nth-child(3)').forEach(c => c.classList.add('active-view'));
+                    if (cards.length > 0) cards[0].classList.add('active-view');
+                    if (cards.length > 1) cards[1].classList.add('active-view');
+                    if (cards.length > 2) cards[2].classList.add('active-view');
                 } else if (viewId === 'remote') {
-                    switchTab('remote'); // Trigger old remote tab logic
-                    document.getElementById('app-container').classList.remove('sidebar-open');
-                    return;
+                    document.getElementById('home-tab').style.display = 'none';
+                    document.getElementById('remote-full-ui').style.display = 'flex';
+                } else if (viewId === 'fleet') {
+                    document.getElementById('home-tab').style.display = 'none';
+                    document.getElementById('fleet-tab').style.display = 'block';
+                    renderFleetList();
                 } else if (viewId === 'settings') {
                     document.querySelectorAll('#home-tab .card:nth-last-child(2), #home-tab .card:nth-last-child(1)').forEach(c => c.classList.add('active-view'));
                 }
 
                 // Update active menu
                 document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-                document.getElementById('menu-' + viewId).classList.add('active');
+                const menuEl = document.getElementById('menu-' + viewId);
+                if (menuEl) menuEl.classList.add('active');
+            } else {
+                switchTab(viewId === 'dashboard' ? 'home' : (viewId === 'remote' ? 'remote' : (viewId === 'fleet' ? 'fleet' : 'home')));
             }
             document.getElementById('app-container').classList.remove('sidebar-open');
         }
 
-        function startSession() {
-            applyUIMode(); // Initialize UI Mode
-            remoteLog('Script initialized. PIN: ' + userPin);
-            document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
-            updateStatus();
-            loadNextThumb();
-            updatePriceFromJS();
-            setInterval(updateStatus, 5000);
-            setInterval(loadNextThumb, 3000);
-            setInterval(updatePriceFromJS, 600000); // 10 min interval
-            remoteLog('Session started. PIN in use. Mode: ' + uiMode);
+        // --- Fleet Management Functions ---
+        function loadNodes() {
+            renderFleetList();
+            checkNodesHealth();
         }
+
+        function openAddNodeModal() {
+            haptic(5);
+            document.getElementById('node-modal').style.display = 'flex';
+        }
+
+        function closeAddNodeModal() {
+            document.getElementById('node-modal').style.display = 'none';
+        }
+
+        function saveNewNode() {
+            const alias = document.getElementById('node-alias').value.trim();
+            const url = document.getElementById('node-url').value.trim();
+            const pin = document.getElementById('node-pin').value.trim() || '0000';
+
+            if (!alias || !url) return alert('모든 항목을 입력해주세요.');
+
+            fleetNodes.push({ alias, url, pin, active: false });
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+
+            document.getElementById('node-alias').value = '';
+            document.getElementById('node-url').value = '';
+            document.getElementById('node-pin').value = '0000';
+
+            closeAddNodeModal();
+            renderFleetList();
+            haptic(20);
+        }
+
+        function switchNode(index) {
+            haptic(15);
+            fleetNodes.forEach((n, i) => n.active = (i === index));
+            currentNodeUrl = fleetNodes[index].url;
+            userPin = fleetNodes[index].pin || '0000'; // Update global auth pin
+
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+            localStorage.setItem('sentinel_pin', userPin); // Persist current session pin
+
+            remoteLog('Switching to Node: ' + fleetNodes[index].alias);
+            document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
+
+            updateStatus();
+            renderFleetList();
+
+            if (uiMode === 'pro') showView('dashboard');
+            else switchTab('home');
+        }
+
+        function removeNode(index) {
+            if (index === 0) return alert('기본 노드는 삭제할 수 없습니다.');
+            if (!confirm('이 노드를 삭제하시겠습니까?')) return;
+            fleetNodes.splice(index, 1);
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+            renderFleetList();
+        }
+
+        function renderFleetList() {
+            const list = document.getElementById('fleet-list');
+            if (!list) return;
+            list.innerHTML = '';
+            fleetNodes.forEach((node, i) => {
+                const card = document.createElement('div');
+                card.className = 'node-card' + (node.active ? ' active' : '');
+                card.onclick = () => switchNode(i);
+
+                card.innerHTML = `
+                    <div class='node-status-dot' id='dot-node-${i}'></div>
+                    <div class='node-info'>
+                        <div style='font-weight:bold; color:var(--accent-gold);'>${node.alias}</div>
+                        <div style='font-size:0.8em; color:#aaa; overflow:hidden; text-overflow:ellipsis;'>${node.url || 'Internal (Local)'}</div>
+                    </div>
+                    ${i > 0 ? `<div onclick='event.stopPropagation(); removeNode(${i});' style='color:#da3633; padding:10px;'>🗑️</div>` : ''}
+                `;
+                list.appendChild(card);
+            });
+            checkNodesHealth();
+        }
+
+        function checkNodesHealth() {
+            fleetNodes.forEach((node, i) => {
+                const targetPin = node.pin || '0000';
+                const target = node.url ? node.url + '/api/health?pin=' + targetPin : '/api/health?pin=' + targetPin;
+                fetch(target).then(r => {
+                    const dot = document.getElementById('dot-node-' + i);
+                    if (dot) dot.className = 'node-status-dot ' + (r.ok ? 'dot-online' : 'dot-offline');
+                }).catch(() => {
+                    const dot = document.getElementById('dot-node-' + i);
+                    if (dot) dot.className = 'node-status-dot dot-offline';
+                });
+            });
+        }
+
 
         function updateStatus() {
             if (!userPin) return;
-            fetch('/api/status?pin=' + userPin)
+            const target = currentNodeUrl ? currentNodeUrl + '/api/status?pin=' + userPin : '/api/status?pin=' + userPin;
+            fetch(target)
                 .then(r => {
                     if (r.status === 401) { logout(); throw new Error('401'); }
                     return r.json();
@@ -782,6 +995,13 @@
                     if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
                     if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
                     if (document.getElementById('val-ip')) document.getElementById('val-ip').innerText = d.publicIp || 'Unknown';
+
+                    // Update Sidebar Info
+                    const sidebarInfo = document.getElementById('sidebar-node-info');
+                    if (sidebarInfo) {
+                        const status = d.state.includes('Synced') ? 'ONLINE' : 'SYNCING';
+                        sidebarInfo.innerText = (d.publicIp || 'Unknown') + ' | ' + status;
+                    }
 
                     // Port Status
                     const updatePort = (id, open) => {
@@ -877,6 +1097,16 @@
         shield.addEventListener('touchstart', e => handleControl(e, 'down'));
         shield.addEventListener('touchend', e => handleControl(e, 'up'));
         shield.addEventListener('touchmove', e => handleControl(e, 'move'));
+
+        // --- Final Initialization ---
+        if (!userPin) {
+            document.getElementById('pin-overlay').style.display = 'flex';
+            document.getElementById('app-container').style.display = 'none';
+        } else {
+            document.getElementById('pin-overlay').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            startSession();
+        }
     </script>
 </body>
 
