@@ -341,8 +341,8 @@
                         <div class='status-value' id='val-state'>---</div>
                     </div>
                     <div class='status-item'>
-                        <div class='status-label'>Age</div>
-                        <div class='status-value' id='val-age'>---</div>
+                        <div class='status-label'>Block Height</div>
+                        <div class='status-value' id='val-block'>---</div>
                     </div>
                     <div class='status-item'>
                         <div class='status-label'>Incoming</div>
@@ -351,6 +351,38 @@
                     <div class='status-item'>
                         <div class='status-label'>Outgoing</div>
                         <div class='status-value' id='val-out'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Public IP</div>
+                        <div class='status-value' id='val-ip' style='font-size:0.9rem'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Connectivity</div>
+                        <div class='status-value' id='val-ports'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Last Sync</div>
+                        <div class='status-value' id='val-sync'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Pi Balance</div>
+                        <div class='status-value' style='color:#f2a900' id='val-balance'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Node Bonus</div>
+                        <div class='status-value' style='color:#f2a900' id='val-bonus'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>CPU Usage</div>
+                        <div class='status-value' id='val-cpu'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>RAM Usage</div>
+                        <div class='status-value' id='val-ram'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Uptime</div>
+                        <div class='status-value' style='font-size:0.9rem' id='val-uptime'>---</div>
                     </div>
                 </div>
             </div>
@@ -495,14 +527,34 @@
                 })
                 .then(d => {
                     svrW = d.screenWidth; svrH = d.screenHeight;
-                    document.getElementById('val-state').innerText = d.State;
-                    document.getElementById('val-age').innerText = d.LedgerAge + 's';
-                    document.getElementById('val-in').innerText = d.Incoming;
-                    document.getElementById('val-out').innerText = d.Outgoing;
-                    document.getElementById('status-bar').innerText = 'D:' + d.State + ' | S:' + svrW + 'x' + svrH + ' | P:' + userPin;
+                    document.getElementById('val-state').innerText = d.state;
+                    document.getElementById('val-in').innerText = d.incoming;
+                    document.getElementById('val-out').innerText = d.outgoing;
+                    if (document.getElementById('val-block')) document.getElementById('val-block').innerText = d.localBlock;
+                    if (document.getElementById('val-bonus')) document.getElementById('val-bonus').innerText = d.nodeBonus.toFixed(4);
+                    if (document.getElementById('val-balance')) document.getElementById('val-balance').innerText = d.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' π';
+                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
+                    if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
+                    if (document.getElementById('val-ip')) document.getElementById('val-ip').innerText = d.publicIp || 'Unknown';
+                    if (document.getElementById('val-ports')) {
+                        const el = document.getElementById('val-ports');
+                        el.innerText = d.portsOk ? 'HEALTHY' : 'CHECKING';
+                        el.className = d.portsOk ? 'status-value success' : 'status-value';
+                    }
+                    if (document.getElementById('val-sync')) {
+                        const age = d.ledgerAge;
+                        const el = document.getElementById('val-sync');
+                        if (age < 0) el.innerText = 'OFFLINE';
+                        else if (age < 10) el.innerText = 'REALTIME';
+                        else el.innerText = age + 's AGO';
+                        el.className = age < 20 ? 'status-value success' : 'status-value';
+                    }
+                    if (document.getElementById('val-uptime')) document.getElementById('val-uptime').innerText = d.uptime;
+
+                    document.getElementById('status-bar').innerText = 'D:' + d.state + ' | S:' + svrW + 'x' + svrH + ' | P:' + userPin;
 
                     const stateEl = document.getElementById('val-state');
-                    stateEl.className = d.State === 'Synced' ? 'status-value success' : 'status-value';
+                    stateEl.className = d.state.includes('Synced') ? 'status-value success' : 'status-value';
                 }).catch(() => { });
         }
 

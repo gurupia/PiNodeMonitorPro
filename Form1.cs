@@ -26,6 +26,7 @@ namespace PiNodeMonitorWinForm
         private int _statLedgerAge = 0;
         private int _totalSeconds = 0;
         private int _totalSyncedSeconds = 0;
+        private bool _statPortsOk = false;
 
         // Timer
         private readonly HttpClient client = new HttpClient();
@@ -245,10 +246,10 @@ namespace PiNodeMonitorWinForm
             // Start Mobile Server
             Task.Run(() => MobileServer.StartServerAsync());
             
-            // Service Init
             _walletService = new WalletService();
             _smsService = new SmsService();
             _monitorService = new NodeMonitorService();
+            _bonusService = new BonusService(""); // Fix NullReferenceException
             _botService = new TelegramBotService();
             InitializeBot();
 
@@ -527,280 +528,214 @@ namespace PiNodeMonitorWinForm
 
         private async Task UpdateDashboardAsync()
         {
-            try 
+            try
             {
-                // Also update wallet occasionally
-                await UpdateWalletBalanceAsync();
+                // 1. Wallet Balance Update (Periodic)
+                try { await UpdateWalletBalanceAsync(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Dashboard] Wallet fail: {ex.Message}"); }
 
-                // Update Uptime
+                // 2. Uptime Tick
                 _totalSeconds += 3;
                 TimeSpan t = TimeSpan.FromSeconds(_totalSeconds);
                 lblUptime.Text = $"Uptime: {t:hh\\:mm\\:ss}";
 
-                // 1. Check if Docker is running (Robust Check)
-                // Try multiple connection attempts for stability
-                // Added "testnet2" based on user feedback
-                string[] containers = { "pi-consensus", "stellar-dummy", "pi-node", "stellar-core", "testnet2" }; 
+                // 3. Docker Status Check
                 bool foundRunning = false;
                 string activeContainer = "";
-
-                foreach (var name in containers)
+                try
                 {
-                    // Check strict 'true'
-                    string inspect = await RunDockerCommandAsync($"inspect -f \"{{{{.State.Running}}}}\" {name}");
-                    if (!string.IsNullOrWhiteSpace(inspect) && inspect.Trim().ToLower().Contains("true"))
+                    string[] containers = { "pi-consensus", "stellar-dummy", "pi-node", "stellar-core", "testnet2" };
+                    foreach (var name in containers)
                     {
-                        activeContainer = name;
-                        foundRunning = true;
-                        break;
-                    }
-                }
-                
-                // If not found, try generic ps
-                if (!foundRunning)
-                {
-                    string ps = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
-                    if (!string.IsNullOrWhiteSpace(ps) && (ps.Contains("pi-consensus") || ps.Contains("stellar-dummy")))
-                    {
-                         activeContainer = ps.Contains("pi-consensus") ? "pi-consensus" : "stellar-dummy";
-                         foundRunning = true;
-                    }
-                }
-
-                NodeUtility.CurrentContainerName = foundRunning ? activeContainer : "pi-consensus";
-
-                // UI Update for Container
-                if (foundRunning)
-                {
-                    btnToggleNode.Text = "Node is ON (Click to OFF)";
-                    btnToggleNode.ForeColor = Color.Green;
-                    btnToggleNode.BackColor = Color.LightGreen;
-                    
-                    // Fetch Stats (CPU/RAM)
-                    string output = await RunDockerCommandAsync($"stats {activeContainer} --no-stream --format \"{{{{.CPUPerc}}}}|{{{{.MemUsage}}}}\"");
-                     if (!string.IsNullOrWhiteSpace(output) && output.Contains("|"))
-                     {
-                        var parts = output.Split('|');
-                        if (parts.Length >= 2) {
-                            lblCPU.Text = parts[0].Trim();
-                            lblRAM.Text = parts[1].Trim(); // Ensure only the first part of RAM is taken if formatted like 10MB / 2GB
+                        string inspect = await RunDockerCommandAsync($"inspect -f \"{{{{.State.Running}}}}\" {name}");
+                        if (!string.IsNullOrWhiteSpace(inspect) && inspect.Trim().ToLower().Contains("true"))
+                        {
+                            activeContainer = name;
+                            foundRunning = true;
+                            break;
                         }
-                     }
-                    
-                    lblContainerStatus.Text = $"Active: {activeContainer}";
-                    lblContainerStatus.ForeColor = Color.Yellow;
+                    }
+
+                    if (!foundRunning)
+                    {
+                        string ps = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
+                        if (!string.IsNullOrWhiteSpace(ps))
+                        {
+                            if (ps.Contains("pi-consensus")) activeContainer = "pi-consensus";
+                            else if (ps.Contains("stellar-dummy")) activeContainer = "stellar-dummy";
+                            else if (ps.Contains("testnet2")) activeContainer = "testnet2";
+                            
+                            if (!string.IsNullOrEmpty(activeContainer)) foundRunning = true;
+                        }
+                    }
+
+                    NodeUtility.CurrentContainerName = foundRunning ? activeContainer : "pi-consensus";
+
+                    if (foundRunning)
+                    {
+                        btnToggleNode.Text = "Node is ON (Click to OFF)";
+                        btnToggleNode.ForeColor = Color.Green;
+                        btnToggleNode.BackColor = Color.LightGreen;
+                        lblContainerStatus.Text = $"Active: {activeContainer}";
+                        lblContainerStatus.ForeColor = Color.Yellow;
+
+                        string statsOutput = await RunDockerCommandAsync($"stats {activeContainer} --no-stream --format \"{{{{.CPUPerc}}}}|{{{{.MemUsage}}}}\"");
+                        if (!string.IsNullOrWhiteSpace(statsOutput) && statsOutput.Contains("|"))
+                        {
+                            var parts = statsOutput.Split('|');
+                            if (parts.Length >= 2)
+                            {
+                                lblCPU.Text = parts[0].Trim();
+                                lblRAM.Text = parts[1].Trim();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        btnToggleNode.Text = "Node is OFF (Click to ON)";
+                        btnToggleNode.BackColor = Color.Salmon;
+                        lblContainerStatus.Text = "Stopped";
+                        lblContainerStatus.ForeColor = Color.Red;
+                        lblCPU.Text = "0%";
+                        lblRAM.Text = "0MB";
+                    }
                 }
-                else
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Dashboard] Docker check fail: {ex.Message}"); }
+
+                // 4. Port Checks
+                try
                 {
-                    btnToggleNode.Text = "Node is OFF (Click to ON)";
-                    btnToggleNode.BackColor = Color.Salmon;
-                    lblContainerStatus.Text = "Stopped";
-                    lblContainerStatus.ForeColor = Color.Red;
-                    lblCPU.Text = "0%";
-                    lblRAM.Text = "0MB";
+                    bool p1 = await CheckPortOpenAsync(31401);
+                    bool p2 = await CheckPortOpenAsync(31402);
+                    bool p3 = await CheckPortOpenAsync(31403);
+                    _statPortsOk = p1 && p2 && p3;
+                    lblPort01.Text = p1 ? "Open" : "Closed"; lblPort01.ForeColor = p1 ? Color.Green : Color.Red;
+                    lblPort02.Text = p2 ? "Open" : "Closed"; lblPort02.ForeColor = p2 ? Color.Green : Color.Red;
+                    lblPort03.Text = p3 ? "Open" : "Closed"; lblPort03.ForeColor = p3 ? Color.Green : Color.Red;
                 }
+                catch { }
 
-                // 2. Port Checks ... (No changes needed here, but included for context flow)
-
-                // 2. Port Checks
-                bool p1 = await CheckPortOpenAsync(31401);
-                bool p2 = await CheckPortOpenAsync(31402);
-                bool p3 = await CheckPortOpenAsync(31403);
-                
-                lblPort01.Text = p1 ? "Open" : "Closed";
-                lblPort01.ForeColor = p1 ? Color.Green : Color.Red;
-                lblPort02.Text = p2 ? "Open" : "Closed";
-                lblPort02.ForeColor = p2 ? Color.Green : Color.Red;
-                lblPort03.Text = p3 ? "Open" : "Closed";
-                lblPort03.ForeColor = p3 ? Color.Green : Color.Red;
-
-                // 3. Node Info & Metrics
+                // 5. Node Info & Metrics
                 string state = "Unknown";
                 int outgoing = 0;
                 int incoming = 0;
                 bool metricsSuccess = false;
 
-                try 
+                try
                 {
                     string metrics = await client.GetStringAsync("http://localhost:31403/metrics");
-                    
                     int mOut = ParseMetricValue(metrics, "stellar_node_peers_connected_outbound");
                     int mIn = ParseMetricValue(metrics, "stellar_node_peers_connected_inbound");
-                    int mAuth = ParseMetricValue(metrics, "stellar_node_peers_authenticated_count"); // Total Authenticated
+                    int mAuth = ParseMetricValue(metrics, "stellar_node_peers_authenticated_count");
                     int mAge = ParseMetricValue(metrics, "stellar_node_ledger_age_seconds");
                     int mLedger = ParseMetricValue(metrics, "stellar_node_ledger_ledger");
-                    
+
                     if (mOut > 0 || mIn > 0 || mLedger > 0)
                     {
                         if (mAuth > 0)
                         {
-                            // [Algorithm v3] Authenticated-based Logic (Most Accurate to Pi App)
-                            // Pi App only counts Authenticated peers.
-                            // Outgoing is hard-capped at 8 for Authenticated.
-                            // Incoming is the rest.
                             outgoing = (mOut > 8) ? 8 : mOut;
                             incoming = mAuth - outgoing;
-                            if (incoming < 0) incoming = 0;
                         }
                         else
                         {
-                            // Fallback: Raw Connections with Clamp
-                            outgoing = mOut;
-                            incoming = mIn;
-                            
-                            if (outgoing > 8)
-                            {
-                                incoming += (outgoing - 8);
-                                outgoing = 8;
-                            }
+                            outgoing = mOut; incoming = mIn;
+                            if (outgoing > 8) { incoming += (outgoing - 8); outgoing = 8; }
                         }
+                        if (incoming < 0) incoming = 0;
 
                         _statLedgerAge = mAge;
                         _statLocalBlock = mLedger.ToString();
-                        
                         if (mAge < 10) state = "Synced!";
                         else if (mAge < 60) state = "Catching up";
                         else state = "Not Synced";
-                        
                         metricsSuccess = true;
                     }
-            }
-            catch { }
+                }
+                catch { }
 
-                // Fallback to Info API ... (Logic continues)
-
-                // Fallback to Info API / Docker Exec if Metrics failed
-                if (!metricsSuccess)
+                if (!metricsSuccess && foundRunning)
                 {
-                    if (foundRunning)
-                     {
-                         // Try one last attempt via Docker Exec Curl (Port 11626 is internal)
-                         string infoJson = await RunDockerCommandAsync($"exec {activeContainer} curl -s --max-time 2 http://localhost:11626/info");
-                         
-                         if (!string.IsNullOrWhiteSpace(infoJson) && infoJson.Contains("ledger"))
-                         {
-                             state = "Synced (Docker)";
-                             
-                             try 
-                             {
-                                 // Robust Regex Parsing (No dependency on JSON structure)
-                                 var regNum = new System.Text.RegularExpressions.Regex("\"num\"\\s*:\\s*(\\d+)");
-                                 var matchNum = regNum.Match(infoJson);
-                                 if (matchNum.Success) 
-                                 {
-                                     _statLocalBlock = matchNum.Groups[1].Value;
-                                 }
+                    try
+                    {
+                        string infoJson = await RunDockerCommandAsync($"exec {activeContainer} curl -s --max-time 2 http://localhost:11626/info");
+                        if (!string.IsNullOrWhiteSpace(infoJson) && infoJson.Contains("ledger"))
+                        {
+                            state = "Synced (Docker)";
+                            var regNum = new System.Text.RegularExpressions.Regex("\"num\"\\s*:\\s*(\\d+)");
+                            var matchNum = regNum.Match(infoJson);
+                            if (matchNum.Success) _statLocalBlock = matchNum.Groups[1].Value;
 
-                                 var regAuth = new System.Text.RegularExpressions.Regex("\"authenticated_count\"\\s*:\\s*(\\d+)");
-                                 var matchAuth = regAuth.Match(infoJson);
-                                 if (matchAuth.Success && int.TryParse(matchAuth.Groups[1].Value, out int totalAuth))
-                                 {
-                                     outgoing = (totalAuth > 8) ? 8 : totalAuth;
-                                     incoming = totalAuth - outgoing;
-                                     if (incoming < 0) incoming = 0;
-                                 }
-                             }
-                             catch {}
-                         }
-                         else
-                         {
-                             state = "Running (No Metrics)";
-                         }
-                     }
-                     else 
-                     {
-                         state = "Stopped";
-                     }
+                            var regAuth = new System.Text.RegularExpressions.Regex("\"authenticated_count\"\\s*:\\s*(\\d+)");
+                            var matchAuth = regAuth.Match(infoJson);
+                            if (matchAuth.Success && int.TryParse(matchAuth.Groups[1].Value, out int totalAuth))
+                            {
+                                outgoing = (totalAuth > 8) ? 8 : totalAuth;
+                                incoming = totalAuth - outgoing;
+                                if (incoming < 0) incoming = 0;
+                            }
+                        }
+                    }
+                    catch { }
                 }
 
                 _statState = state;
-                
-                // Update Status Labels
-                if (state == "Synced!" || state == "Synced (Docker)")
-                {
-                    lblMainStatus.Text = (state == "Synced!") ? "Your computer is running the blockchain" : state;
-                    lblMainStatus.ForeColor = Color.Green;
-                    _totalSyncedSeconds += 3;
-                }
-                else
-                {
-                    lblMainStatus.Text = state;
-                    lblMainStatus.ForeColor = Color.Orange;
-                }
-                
-                lblLocalBlockNum.Text = _statLocalBlock;
-                if (lblRemoteBlockNum != null) lblRemoteBlockNum.Text = _statLocalBlock;
-                if (lblState != null) lblState.Text = _statState;
-                if (lblLatestBlock != null) lblLatestBlock.Text = _statLocalBlock;
-                if (lblLedgerAge != null) lblLedgerAge.Text = $"{_statLedgerAge} sec"; 
-                if (lblProtocolVersion != null) lblProtocolVersion.Text = "Latest"; 
-                if (lblStellarBuild != null) lblStellarBuild.Text = "stellar-core";
-
-                // =========================================================
-                // [FINAL CHECK] Enforce Outgoing Cap (Universal Rule)
-                // =========================================================
-                if (outgoing > 8)
-                {
-                    incoming += (outgoing - 8);
-                    outgoing = 8;
-                }
-
-                lblIncoming.Text = incoming.ToString();
-                lblOutgoing.Text = outgoing.ToString();
-                
-                string debugSource = metricsSuccess ? "Metrics" : "Info/Docker";
-                if (incoming > 0)
-                {
-                    lblSupporting.Text = $"Yes ({debugSource})";
-                    lblSupporting.ForeColor = Color.Green;
-                }
-                else
-                {
-                    lblSupporting.Text = $"No ({debugSource})";
-                    lblSupporting.ForeColor = Color.Black;
-                }
-
                 _statIn = incoming;
                 _statOut = outgoing;
-                
-                // Update Session Avail
-                double avail = _totalSeconds > 0 ? (double)_totalSyncedSeconds / _totalSeconds * 100.0 : 0;
-                lblAvailability.Text = $"Availability: {avail:F2}%";
 
-                // Update Bonus (Periodic Check)
+                // 6. Bonus Update (Periodic)
                 if (_bonusUpdateCounter <= 0)
                 {
-                    _bonusService.LogDebug("UpdateDashboardAsync: Fetching bonus data...");
-                    var nodeInfo = await _bonusService.GetNodeInfoAsync();
-                    _currentBonus = nodeInfo.Bonus;
-                    _bonusService.LogDebug($"UpdateDashboardAsync: Fetched Bonus = {_currentBonus}");
-
-                    if (_currentBonus >= 0)
+                    try
                     {
-                        lblBonus.Text = $"Bonus: {_currentBonus:F4}";
-                        if (nodeInfo.CpuCount > 0)
+                        var nodeInfo = await _bonusService.GetNodeInfoAsync();
+                        if (nodeInfo.Bonus >= 0)
                         {
-                            lblServerCpuCount.Text = $"{nodeInfo.CpuCount} Cores";
+                            _currentBonus = nodeInfo.Bonus;
+                            lblBonus.Text = $"Bonus: {_currentBonus:F4}";
+                            if (nodeInfo.CpuCount > 0) lblServerCpuCount.Text = $"{nodeInfo.CpuCount} Cores";
+                            
+                            double currentAvail = _totalSeconds > 0 ? (double)_totalSyncedSeconds / _totalSeconds * 100.0 : 0;
+                            bool portsOk = lblPort01.Text == "Open" && lblPort03.Text == "Open";
+                            _bonusService.RecordBonus(_currentBonus, currentAvail.ToString("F2"), portsOk);
                         }
-                        else
-                        {
-                            lblServerCpuCount.Text = "N/A (Pending)";
-                        }
-                        _bonusService.LogDebug($"UI Updated: Bonus={_currentBonus}, CPU={nodeInfo.CpuCount}");
-                        
-                        // Record to CSV
-                        bool portsOk = lblPort01.Text == "Listening" && lblPort03.Text == "Listening";
-                        _bonusService.RecordBonus(_currentBonus, avail.ToString("F2"), portsOk);
-                        
-                        // Set ToolTip with Trend Info
-                        string trend = _bonusService.GetBonusTrendReport();
-                        this.SafeInvoke(() => toolTip1.SetToolTip(lblBonus, trend));
                     }
-                    _bonusUpdateCounter = 12; // Every 1 minute
+                    catch { }
+                    _bonusUpdateCounter = 20; // Every 1 min approx (3s * 20)
                 }
                 _bonusUpdateCounter--;
 
-                // Sync to Mobile
+                // 7. Update Final UI Labels
+                this.SafeInvoke(() => {
+                    lblMainStatus.Text = (state == "Synced!" || state == "Synced (Docker)") ? "Your computer is running the blockchain" : state;
+                    lblMainStatus.ForeColor = (state.Contains("Synced")) ? Color.Green : Color.Orange;
+                    if (state.Contains("Synced")) _totalSyncedSeconds += 3;
+
+                    lblLocalBlockNum.Text = _statLocalBlock;
+                    if (lblRemoteBlockNum != null) lblRemoteBlockNum.Text = _statLocalBlock;
+                    if (lblState != null) lblState.Text = _statState;
+                    if (lblLatestBlock != null) lblLatestBlock.Text = _statLocalBlock;
+                    if (lblLedgerAge != null) lblLedgerAge.Text = $"{_statLedgerAge}s";
+                    
+                    lblIncoming.Text = _statIn.ToString();
+                    lblOutgoing.Text = _statOut.ToString();
+                    
+                    double avail = _totalSeconds > 0 ? (double)_totalSyncedSeconds / _totalSeconds * 100.0 : 0;
+                    lblAvailability.Text = $"Availability: {avail:F2}%";
+                    
+                    if (statusLabel != null)
+                        statusLabel.Text = $"Synced | Active: {NodeUtility.CurrentContainerName} | Last: {DateTime.Now:HH:mm:ss}";
+                });
+
+                // 8. SMS/Health Checks
+                CheckNodeHealth();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Dashboard] Critical loop error: {ex.Message}");
+            }
+            finally
+            {
+                // CRITICAL: Always sync what we have to MobileServer
                 MobileServer.CurrentStatus = new NodeStatusData
                 {
                     State = _statState,
@@ -810,20 +745,13 @@ namespace PiNodeMonitorWinForm
                     ProtocolVersion = lblProtocolVersion?.Text ?? "Unknown",
                     LedgerAge = _statLedgerAge,
                     Uptime = lblUptime.Text.Replace("Uptime: ", ""),
-                    NodeBonus = _currentBonus
+                    NodeBonus = _currentBonus,
+                    WalletBalance = (double)_lastBalance,
+                    CpuUsage = lblCPU.Text,
+                    RamUsage = lblRAM.Text,
+                    PublicIp = MobileServer.PublicIpAddress,
+                    PortsOk = _statPortsOk
                 };
-                
-                // StatusStrip update
-                 if (statusLabel != null)
-                    statusLabel.Text = $"Synced | Container: {NodeUtility.CurrentContainerName} | Engine: {MobileServer.LastCaptureMode} | Last Update: {DateTime.Now:HH:mm:ss}";
-                 
-                 // [New] Check Node Health for SMS Alerts
-                 CheckNodeHealth();
-            }
-            catch (Exception ex)
-            {
-                 // Ignore UI update errors
-                 System.Diagnostics.Debug.WriteLine(ex.ToString());
             }
         }
 
@@ -846,7 +774,7 @@ namespace PiNodeMonitorWinForm
             string trend = _bonusService.GetBonusTrendReport();
             using (var historyForm = new HistoryForm(csvPath, trend))
             {
-                historyForm.ShowDialog();
+                historyForm.ShowDialog(this);
             }
         }
 
@@ -854,7 +782,7 @@ namespace PiNodeMonitorWinForm
         {
             using (var helpForm = new HelpForm())
             {
-                helpForm.ShowDialog();
+                helpForm.ShowDialog(this);
             }
         }
 

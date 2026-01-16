@@ -276,14 +276,19 @@ namespace PiNodeMonitorWinForm
 
                     var status = CurrentStatus;
                     var json = JsonConvert.SerializeObject(new {
-                        status.State,
-                        status.Incoming,
-                        status.Outgoing,
-                        status.LocalBlock,
-                        status.ProtocolVersion,
-                        status.LedgerAge,
-                        status.Uptime,
-                        status.NodeBonus,
+                        state = status.State,
+                        incoming = status.Incoming,
+                        outgoing = status.Outgoing,
+                        localBlock = status.LocalBlock,
+                        protocolVersion = status.ProtocolVersion,
+                        ledgerAge = status.LedgerAge,
+                        uptime = status.Uptime,
+                        nodeBonus = status.NodeBonus,
+                        balance = status.WalletBalance,
+                        cpu = status.CpuUsage,
+                        ram = status.RamUsage,
+                        publicIp = status.PublicIp,
+                        portsOk = status.PortsOk,
                         captureMode = LastCaptureMode,
                         screenWidth = Screen.PrimaryScreen.Bounds.Width,
                         screenHeight = Screen.PrimaryScreen.Bounds.Height
@@ -588,13 +593,18 @@ namespace PiNodeMonitorWinForm
 
     public class NodeStatusData
     {
-        public string State { get; set; } = "Unknown";
+        public string State { get; set; }
         public int Incoming { get; set; }
         public int Outgoing { get; set; }
-        public string LocalBlock { get; set; } = "0";
-        public string ProtocolVersion { get; set; } = "-";
+        public string LocalBlock { get; set; }
+        public string ProtocolVersion { get; set; }
         public int LedgerAge { get; set; }
-        public string Uptime { get; set; } = "-"; 
+        public string Uptime { get; set; }
         public double NodeBonus { get; set; }
+        public double WalletBalance { get; set; }
+        public string CpuUsage { get; set; }
+        public string RamUsage { get; set; }
+        public string PublicIp { get; set; }
+        public bool PortsOk { get; set; }
     }
 }
