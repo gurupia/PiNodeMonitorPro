@@ -536,13 +536,36 @@
                 .catch(e => alert('Error: ' + e.message));
         }
 
+        let lastPriceFetch = 0;
+        function updatePriceFromJS() {
+            const now = Date.now();
+            if (now - lastPriceFetch < 600000) return; // 10 min cache
+
+            fetch('https://api.coingecko.com/api/v3/simple/price?ids=pi-network-iou&vs_currencies=usd,krw')
+                .then(r => r.json())
+                .then(json => {
+                    const data = json['pi-network-iou'];
+                    if (data) {
+                        lastPriceFetch = now;
+                        // Send back to C# Server
+                        fetch('/api/update_price?pin=' + userPin, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ usd: data.usd, krw: data.krw })
+                        }).catch(() => { });
+                    }
+                }).catch(() => { });
+        }
+
         function startSession() {
             remoteLog('Script initialized. PIN: ' + userPin);
             document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
             updateStatus();
             loadNextThumb();
+            updatePriceFromJS();
             setInterval(updateStatus, 5000);
             setInterval(loadNextThumb, 3000);
+            setInterval(updatePriceFromJS, 600000); // 10 min interval
             remoteLog('Session started. PIN in use.');
         }
 

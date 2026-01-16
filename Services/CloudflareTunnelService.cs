@@ -22,9 +22,27 @@ namespace PiNodeMonitorWinForm.Services
         public string TunnelUrl => _tunnelUrl;
         public bool IsRunning => _isRunning;
 
+        private void CleanupExistingProcesses()
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName("cloudflared");
+                foreach (var p in processes)
+                {
+                    try { p.Kill(); p.WaitForExit(1000); } catch { }
+                }
+                LogReceived?.Invoke("[Tunnel] Cleaned up existing cloudflared processes.");
+            }
+            catch (Exception ex) { LogReceived?.Invoke("[Tunnel] Cleanup error: " + ex.Message); }
+        }
+
         public async Task<bool> StartTunnelAsync(int localPort)
         {
             _lastPort = localPort;
+            
+            // Clean up any old or leaked processes first
+            CleanupExistingProcesses();
+
             if (_isRunning && _process != null && !_process.HasExited) return true;
 
             string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cloudflared.exe");

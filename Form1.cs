@@ -49,6 +49,10 @@ namespace PiNodeMonitorWinForm
         private BonusService _bonusService;
         private double _currentBonus = 0;
         private int _bonusUpdateCounter = 0;
+        private double _currentPriceUsd = 0;
+        private double _currentPriceKrw = 0;
+        private double _currentTotalUsd = 0;
+        private double _currentTotalKrw = 0;
 
         // Cloudflare Tunnel (Linked to MobileServer)
         private Button btnSecureTunnel;
@@ -215,6 +219,13 @@ namespace PiNodeMonitorWinForm
                     lblTunnelLink.ForeColor = Color.LimeGreen;
                     btnSecureTunnel.Text = "🔒 Close Tunnel";
                     btnSecureTunnel.Enabled = true;
+
+                    // Auto-copy to clipboard for convenience
+                    try { 
+                        Clipboard.SetText(url); 
+                        if (notifyIcon != null)
+                            notifyIcon.ShowBalloonTip(5000, "🌐 Mobile Tunnel Active", "URL copied to clipboard!\n" + url, ToolTipIcon.Info);
+                    } catch { }
                 });
             };
 
@@ -448,6 +459,22 @@ namespace PiNodeMonitorWinForm
                 ToggleWalletEdit(false); 
             } else { ToggleWalletEdit(true); }
 
+            // --- Hybrid Price Sync: Listen to Mobile App updates ---
+            MobileServer.PriceUpdated += (usd, krw) => {
+                _currentPriceUsd = usd;
+                _currentPriceKrw = krw;
+                if (_lastBalance > 0)
+                {
+                    _currentTotalUsd = (double)_lastBalance * usd;
+                    _currentTotalKrw = (double)_lastBalance * krw;
+                }
+                
+                this.SafeInvoke(() => {
+                    lblPrice.Text = $"Price: ${_currentPriceUsd:F2} / {_currentPriceKrw:N0}₩ [M]";
+                    lblTotalValue.Text = $"Value: ${_currentTotalUsd:N2} / ${_currentTotalKrw:N0}₩";
+                });
+            };
+
             // 4. Dark Footer (External to Flow)
             Panel pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 35, BackColor = Color.FromArgb(32, 32, 32) };
             Label lblCopy = new Label { Text = "Copyright © 2025 GuruPia. All rights reserved.", ForeColor = Color.LightGray, Font = new Font("Segoe UI", 9), AutoSize = true, Location = new Point(10, 8) };
@@ -541,21 +568,23 @@ namespace PiNodeMonitorWinForm
                 var (usd, krw) = await _priceService.FetchPriceAsync();
                 if (usd > 0)
                 {
-                    double totalUsd = (double)dBal * usd;
-                    double totalKrw = (double)dBal * krw;
+                    _currentPriceUsd = usd;
+                    _currentPriceKrw = krw;
+                    _currentTotalUsd = (double)dBal * usd;
+                    _currentTotalKrw = (double)dBal * krw;
 
                     this.SafeInvoke(() => {
-                        lblPrice.Text = $"Price: ${usd:F2} / {krw:N0}₩";
-                        lblTotalValue.Text = $"Value: ${totalUsd:N2} / {totalKrw:N0}₩";
+                        lblPrice.Text = $"Price: ${_currentPriceUsd:F2} / {_currentPriceKrw:N0}₩";
+                        lblTotalValue.Text = $"Value: ${_currentTotalUsd:N2} / ${_currentTotalKrw:N0}₩";
                     });
 
-                    // Update MobileServer Status for price
+                    // Update MobileServer Status for price (Immediate sync)
                     if (MobileServer.CurrentStatus != null)
                     {
-                        MobileServer.CurrentStatus.PiPriceUSD = usd;
-                        MobileServer.CurrentStatus.PiPriceKRW = krw;
-                        MobileServer.CurrentStatus.TotalValueUSD = totalUsd;
-                        MobileServer.CurrentStatus.TotalValueKRW = totalKrw;
+                        MobileServer.CurrentStatus.PiPriceUSD = _currentPriceUsd;
+                        MobileServer.CurrentStatus.PiPriceKRW = _currentPriceKrw;
+                        MobileServer.CurrentStatus.TotalValueUSD = _currentTotalUsd;
+                        MobileServer.CurrentStatus.TotalValueKRW = _currentTotalKrw;
                     }
                 }
             }
@@ -825,7 +854,11 @@ namespace PiNodeMonitorWinForm
                     RamUsage = lblRAM.Text,
                     PublicIp = MobileServer.PublicIpAddress,
                     PortsOk = _statPortsOk,
-                    NodeBonus = _currentBonus
+                    NodeBonus = _currentBonus,
+                    PiPriceUSD = _currentPriceUsd,
+                    PiPriceKRW = _currentPriceKrw,
+                    TotalValueUSD = _currentTotalUsd,
+                    TotalValueKRW = _currentTotalKrw
                 };
             }
         }

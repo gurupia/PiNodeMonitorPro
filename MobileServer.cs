@@ -49,6 +49,7 @@ namespace PiNodeMonitorWinForm
         public static event Action<string> RequestLogged;
         public static event Action<string> PublicIpDetected;
         public static event Action<string> TunnelUrlGenerated;
+        public static event Action<double, double> PriceUpdated;
 
         public static NodeStatusData CurrentStatus { get; set; } = new NodeStatusData();
 
@@ -228,6 +229,29 @@ namespace PiNodeMonitorWinForm
                     {
                         string body = reader.ReadToEnd();
                         Log($"[MOBILE_LOG] {body}");
+                    }
+                    SendResponse(res, "ok", "text/plain");
+                    return;
+                }
+
+                if (path == "/api/update_price")
+                {
+                    if (req.HttpMethod == "POST")
+                    {
+                        using (var reader = new StreamReader(req.InputStream, req.ContentEncoding))
+                        {
+                            string body = reader.ReadToEnd();
+                            var data = JsonConvert.DeserializeObject<JObject>(body);
+                            if (data != null)
+                            {
+                                double usd = data["usd"]?.Value<double>() ?? 0;
+                                double krw = data["krw"]?.Value<double>() ?? 0;
+                                if (usd > 0)
+                                {
+                                    PriceUpdated?.Invoke(usd, krw);
+                                }
+                            }
+                        }
                     }
                     SendResponse(res, "ok", "text/plain");
                     return;
