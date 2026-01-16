@@ -3,6 +3,9 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PiNodeMonitorWinForm.Services
 {
@@ -31,6 +34,21 @@ namespace PiNodeMonitorWinForm.Services
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WalletService] LoadKey error: {ex.Message}"); PublicKey = ""; }
         }
 
+        public class PiBalance
+        {
+            [JsonProperty("balance")]
+            public string Balance { get; set; }
+
+            [JsonProperty("asset_type")]
+            public string AssetType { get; set; }
+        }
+
+        public class PiAccountResponse
+        {
+            [JsonProperty("balances")]
+            public List<PiBalance> Balances { get; set; }
+        }
+
         public void SaveKey(string key)
         {
             try
@@ -54,19 +72,26 @@ namespace PiNodeMonitorWinForm.Services
 
             try
             {
-                var json = await _client.GetStringAsync(ApiUrl + PublicKey);
+                var response = await _client.GetStringAsync(ApiUrl + PublicKey);
+                var account = JsonConvert.DeserializeObject<PiAccountResponse>(response);
                 
-                // Regex parsing logic extracted from Form1
-                var match = Regex.Match(json, "\"balance\"\\s*:\\s*\"([0-9.]+)\"[^}]*?\"asset_type\"\\s*:\\s*\"native\"");
-                if (!match.Success) 
-                    match = Regex.Match(json, "\"asset_type\"\\s*:\\s*\"native\"[^}]*?\"balance\"\\s*:\\s*\"([0-9.]+)\"");
-                    
-                if (match.Success)
+                if (account?.Balances != null)
                 {
-                    if (decimal.TryParse(match.Groups[1].Value, out decimal balance))
+                    var nativeBalance = account.Balances.FirstOrDefault(b => b.AssetType == "native");
+                    if (nativeBalance != null && decimal.TryParse(nativeBalance.Balance, out decimal balance))
                     {
                         return balance;
                     }
+                }
+
+                // Fallback to Regex only if JSON DTO fails (for legacy or slight variations)
+                var match = Regex.Match(response, "\"balance\"\\s*:\\s*\"([0-9.]+)\"[^}]*?\"asset_type\"\\s*:\\s*\"native\"");
+                if (!match.Success) 
+                    match = Regex.Match(response, "\"asset_type\"\\s*:\\s*\"native\"[^}]*?\"balance\"\\s*:\\s*\"([0-9.]+)\"");
+                    
+                if (match.Success && decimal.TryParse(match.Groups[1].Value, out decimal fallbackBalance))
+                {
+                    return fallbackBalance;
                 }
             }
             catch (Exception ex)

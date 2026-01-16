@@ -36,12 +36,13 @@ namespace PiNodeMonitorWinForm
             Label lblIp = new Label { Text = "IP:", Location = new Point(5, 8), AutoSize = true };
             pnlCtrl.Controls.Add(lblIp);
 
-            cboIps = new ComboBox();
-            cboIps.Location = new Point(35, 5);
-            cboIps.Size = new Size(160, 25);
-            cboIps.DropDownStyle = ComboBoxStyle.DropDownList;
-            
-            // Populate IPs: Public IP first (if available), then local IPs
+            // Populate IPs: Tunnel URL first, then Public IP, then local IPs
+            string tunnelUrl = MobileServer.TunnelUrl;
+            if (!string.IsNullOrEmpty(tunnelUrl))
+            {
+                cboIps.Items.Add($"[보안터널] {tunnelUrl}");
+            }
+
             string publicIp = MobileServer.PublicIpAddress;
             if (!string.IsNullOrEmpty(publicIp) && publicIp != "Unknown")
             {
@@ -90,11 +91,32 @@ namespace PiNodeMonitorWinForm
             lblUrl.Click += (s, e) => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = lblUrl.Text, UseShellExecute = true }); } catch {} };
             this.Controls.Add(lblUrl);
 
-            // Subscribe to Public IP detection event
+            // Subscribe to Detection events
             MobileServer.PublicIpDetected += OnPublicIpDetected;
-            this.FormClosed += (s, e) => MobileServer.PublicIpDetected -= OnPublicIpDetected;
+            MobileServer.TunnelUrlGenerated += OnTunnelUrlGenerated;
+            
+            this.FormClosed += (s, e) => {
+                MobileServer.PublicIpDetected -= OnPublicIpDetected;
+                MobileServer.TunnelUrlGenerated -= OnTunnelUrlGenerated;
+            };
 
             UpdateQR();
+        }
+
+        private void OnTunnelUrlGenerated(string url)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => OnTunnelUrlGenerated(url)));
+                return;
+            }
+
+            string item = $"[보안터널] {url}";
+            if (!cboIps.Items.Contains(item))
+            {
+                cboIps.Items.Insert(0, item);
+                cboIps.SelectedIndex = 0;
+            }
         }
 
         private void OnPublicIpDetected(string publicIp)
@@ -119,24 +141,33 @@ namespace PiNodeMonitorWinForm
             try
             {
                 string selectedItem = cboIps.SelectedItem?.ToString() ?? "";
-                string ip;
+                string url = "";
                 
-                if (chkRemote.Checked)
+                if (selectedItem.StartsWith("[보안터널]"))
                 {
-                    ip = MobileServer.PublicIpAddress;
-                }
-                else if (selectedItem.StartsWith("[공인]"))
-                {
-                    ip = selectedItem.Replace("[공인] ", "");
+                    string tunnelBase = selectedItem.Replace("[보안터널] ", "").Trim();
+                    url = $"{tunnelBase}/?pin={MobileServer.CurrentPin}";
                 }
                 else
                 {
-                    ip = selectedItem;
+                    string ip;
+                    if (chkRemote.Checked)
+                    {
+                        ip = MobileServer.PublicIpAddress;
+                    }
+                    else if (selectedItem.StartsWith("[공인]"))
+                    {
+                        ip = selectedItem.Replace("[공인] ", "");
+                    }
+                    else
+                    {
+                        ip = selectedItem;
+                    }
+                    
+                    if (string.IsNullOrEmpty(ip) || ip == "Unknown") ip = "127.0.0.1";
+                    url = $"http://{ip}:{MobileServer.Port}/?pin={MobileServer.CurrentPin}";
                 }
                 
-                if (string.IsNullOrEmpty(ip) || ip == "Unknown") ip = "127.0.0.1";
-                
-                string url = $"http://{ip}:{MobileServer.Port}/?pin={MobileServer.CurrentPin}";
                 lblUrl.Text = url;
                 
                 QRCodeGenerator qrGenerator = new QRCodeGenerator();

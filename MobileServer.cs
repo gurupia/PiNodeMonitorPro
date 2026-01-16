@@ -33,6 +33,10 @@ namespace PiNodeMonitorWinForm
         public static int Port { get; private set; } = 5000;
         public static string CurrentPin { get; private set; } = "0000";
         public static string LastCaptureMode { get; private set; } = "Ready";
+        public static string TunnelUrl { get; private set; } = null;
+
+        private static Services.CloudflareTunnelService _tunnelService;
+        public static Services.CloudflareTunnelService TunnelService => _tunnelService;
 
         static MobileServer()
         {
@@ -43,6 +47,7 @@ namespace PiNodeMonitorWinForm
 
         public static event Action<string> RequestLogged;
         public static event Action<string> PublicIpDetected;
+        public static event Action<string> TunnelUrlGenerated;
 
         public static NodeStatusData CurrentStatus { get; set; } = new NodeStatusData();
 
@@ -156,6 +161,23 @@ namespace PiNodeMonitorWinForm
 
                 _cts = new CancellationTokenSource();
                 _ = Task.Run(() => HandleRequests(_cts.Token));
+                
+                // Start Cloudflare Tunnel
+                _ = Task.Run(async () => {
+                    _tunnelService = new Services.CloudflareTunnelService();
+                    _tunnelService.UrlGenerated += (url) => {
+                        TunnelUrl = url;
+                        Log($"[Tunnel] URL Generated: {url}");
+                        TunnelUrlGenerated?.Invoke(url);
+                    };
+                    _tunnelService.LogReceived += (msg) => {
+                        if (msg.Contains("Error") || msg.Contains("Failed")) Log($"[Tunnel] {msg}");
+                    };
+                    
+                    Log("[Tunnel] Starting Cloudflare Tunnel...");
+                    await _tunnelService.StartTunnelAsync(Port);
+                });
+
                 Log($"Server Started. PIN: {CurrentPin}");
                 Log($"Local: http://127.0.0.1:{Port}/?pin={CurrentPin}");
                 if (CurrentIpAddress != "127.0.0.1")
@@ -165,6 +187,15 @@ namespace PiNodeMonitorWinForm
             {
                 Log($"FATAL: Server failed to start: {ex.Message}");
             }
+        }
+
+        public static void StopServer()
+        {
+            _cts?.Cancel();
+            _listener?.Stop();
+            _listener = null;
+            _tunnelService?.StopTunnel();
+            Log("Mobile Server Stopped.");
         }
 
         private static async Task HandleRequests(CancellationToken token)

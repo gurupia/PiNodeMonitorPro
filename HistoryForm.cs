@@ -11,19 +11,30 @@ namespace PiNodeMonitorWinForm
         private DataGridView _grid;
         private string _csvPath;
 
-        public HistoryForm(string csvPath)
+        public HistoryForm(string csvPath, string trendReport = "")
         {
             _csvPath = csvPath;
-            InitializeComponent();
+            InitializeComponent(trendReport);
             LoadData();
         }
 
-        private void InitializeComponent()
+        private void InitializeComponent(string trendReport)
         {
             this.Text = "Node Availability & Bonus History";
-            this.Size = new System.Drawing.Size(700, 450);
+            this.Size = new System.Drawing.Size(750, 550);
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = System.Drawing.Color.FromArgb(45, 45, 45);
+
+            // Trend Panel
+            Panel pnlTrend = new Panel { Dock = DockStyle.Top, Height = 100, BackColor = System.Drawing.Color.FromArgb(35, 35, 35), Padding = new Padding(10) };
+            Label lblTrend = new Label { 
+                Text = string.IsNullOrEmpty(trendReport) ? "Trend data not available." : trendReport,
+                Dock = DockStyle.Fill,
+                ForeColor = System.Drawing.Color.LightGreen,
+                Font = new System.Drawing.Font("Consolas", 10, System.Drawing.FontStyle.Bold)
+            };
+            pnlTrend.Controls.Add(lblTrend);
+            this.Controls.Add(pnlTrend);
 
             _grid = new DataGridView
             {
@@ -45,6 +56,7 @@ namespace PiNodeMonitorWinForm
             _grid.DefaultCellStyle.ForeColor = System.Drawing.Color.AntiqueWhite;
 
             this.Controls.Add(_grid);
+            _grid.BringToFront();
         }
 
         private void LoadData()

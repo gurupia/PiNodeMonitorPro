@@ -11,6 +11,9 @@ namespace PiNodeMonitorWinForm.Services
         private Process _process;
         private string _tunnelUrl;
         private bool _isRunning;
+        private int _retryCount = 0;
+        private const int MaxRetries = 3;
+        private int _lastPort;
 
         public event Action<string> UrlGenerated;
         public event Action<string> LogReceived;
@@ -21,7 +24,8 @@ namespace PiNodeMonitorWinForm.Services
 
         public async Task<bool> StartTunnelAsync(int localPort)
         {
-            if (_isRunning) return true;
+            _lastPort = localPort;
+            if (_isRunning && _process != null && !_process.HasExited) return true;
 
             string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cloudflared.exe");
             if (!File.Exists(exePath))
@@ -42,7 +46,25 @@ namespace PiNodeMonitorWinForm.Services
                     CreateNoWindow = true
                 };
 
-                _process = new Process { StartInfo = psi };
+                _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                _process.Exited += async (s, e) => {
+                    if (_isRunning)
+                    {
+                        LogReceived?.Invoke("[Tunnel] Process exited unexpectedly. Retrying...");
+                        if (_retryCount < MaxRetries)
+                        {
+                            _retryCount++;
+                            await Task.Delay(2000 * _retryCount);
+                            await StartTunnelAsync(_lastPort);
+                        }
+                        else
+                        {
+                            LogReceived?.Invoke("[Tunnel] Max retries reached. Tunnel stopped.");
+                            StopTunnel();
+                        }
+                    }
+                };
+                
                 _process.ErrorDataReceived += (s, e) => ProcessOutput(e.Data);
                 _process.OutputDataReceived += (s, e) => ProcessOutput(e.Data);
 
@@ -74,6 +96,7 @@ namespace PiNodeMonitorWinForm.Services
                 if (match.Success)
                 {
                     _tunnelUrl = match.Value;
+                    _retryCount = 0; // Reset retry count on success
                     UrlGenerated?.Invoke(_tunnelUrl);
                 }
             }

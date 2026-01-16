@@ -46,13 +46,15 @@ namespace PiNodeMonitorWinForm
         private double _currentBonus = 0;
         private int _bonusUpdateCounter = 0;
 
-        // Cloudflare Tunnel
-        private CloudflareTunnelService _tunnelService;
+        // Cloudflare Tunnel (Linked to MobileServer)
         private Button btnSecureTunnel;
         private Label lblTunnelLink;
         
         public Form1()
         {
+            // Performance Optimization for Hybrid CPU (i5-14600K)
+            PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly);
+
             InitializeComponent();
             client.Timeout = TimeSpan.FromSeconds(3);
             this.Height += 120; // Increased height for Wallet UI + Footer
@@ -196,25 +198,22 @@ namespace PiNodeMonitorWinForm
             // But we have existing controls in Designer. 
             // Better to add menuStrip to the Form's Controls and ensure it's at the top.
             
-            // Initialize Services
-            _bonusService = new BonusService("387f2aaa-2883-443f-b69c-fe6a77647b1f");
-            _tunnelService = new CloudflareTunnelService();
-            _tunnelService.UrlGenerated += (url) => {
-                this.Invoke((Action)(() => {
+            // Mobile Server Events (Tunnel Integration)
+            MobileServer.TunnelUrlGenerated += (url) => {
+                this.SafeInvoke(() => {
                     lblTunnelLink.Text = "Secure URL: " + url;
                     lblTunnelLink.ForeColor = Color.LimeGreen;
                     btnSecureTunnel.Text = "🔒 Close Tunnel";
                     btnSecureTunnel.Enabled = true;
-                }));
+                });
             };
-            _tunnelService.Stopped += () => {
-                this.Invoke((Action)(() => {
-                    lblTunnelLink.Text = "Secure URL: Not Active";
-                    lblTunnelLink.ForeColor = Color.Gray;
-                    btnSecureTunnel.Text = "🌐 Secure Link";
-                    btnSecureTunnel.Enabled = true;
-                }));
-            };
+
+            // Initial Tunnel Check (if already started by MobileServer)
+            if (!string.IsNullOrEmpty(MobileServer.TunnelUrl)) {
+                 lblTunnelLink.Text = "Secure URL: " + MobileServer.TunnelUrl;
+                 lblTunnelLink.ForeColor = Color.LimeGreen;
+                 btnSecureTunnel.Text = "🔒 Close Tunnel";
+            }
 
             try 
             { 
@@ -360,16 +359,23 @@ namespace PiNodeMonitorWinForm
             btnSecureTunnel.FlatStyle = FlatStyle.Flat;
             btnSecureTunnel.Font = new Font("Segoe UI", 9, FontStyle.Bold);
             btnSecureTunnel.Click += async (s, e) => {
-                if (_tunnelService.IsRunning)
+                var tunnel = MobileServer.TunnelService;
+                if (tunnel != null && tunnel.IsRunning)
                 {
                     btnSecureTunnel.Enabled = false;
-                    _tunnelService.StopTunnel();
+                    tunnel.StopTunnel();
+                    lblTunnelLink.Text = "Secure URL: Not Active";
+                    lblTunnelLink.ForeColor = Color.Gray;
+                    btnSecureTunnel.Text = "🌐 Secure Link";
+                    btnSecureTunnel.Enabled = true;
                 }
                 else
                 {
                     btnSecureTunnel.Enabled = false;
                     btnSecureTunnel.Text = "⏳ Opening...";
-                    bool started = await _tunnelService.StartTunnelAsync(MobileServer.Port);
+                    // Trigger manual start if not auto-started (uses MobileServer's instance)
+                    if (tunnel == null) return; // Should be initialized by MobileServer
+                    bool started = await tunnel.StartTunnelAsync(MobileServer.Port);
                     if (!started)
                     {
                         btnSecureTunnel.Enabled = true;
@@ -391,21 +397,19 @@ namespace PiNodeMonitorWinForm
             lblTunnelLink.Margin = new Padding(10, 0, 0, 10);
             lblTunnelLink.Cursor = Cursors.Hand;
             lblTunnelLink.Click += (s, e) => {
-                if (_tunnelService.IsRunning && !string.IsNullOrEmpty(_tunnelService.TunnelUrl))
+                string url = MobileServer.TunnelUrl;
+                if (!string.IsNullOrEmpty(url))
                 {
                     try 
                     {
-                        Clipboard.SetText(_tunnelService.TunnelUrl);
+                        Clipboard.SetText(url);
                         MessageBox.Show("Secure URL copied to clipboard!");
                     }
-                    catch (Exception)
-                    {
-                        // Clipboard might be locked by another process. Ignore and proceed to open link.
-                    }
+                    catch { }
 
-                    if (_tunnelService.TunnelUrl.StartsWith("http"))
+                    if (url.StartsWith("http"))
                     {
-                        Process.Start(_tunnelService.TunnelUrl);
+                        Process.Start(url);
                     }
                 }
             };
@@ -787,6 +791,10 @@ namespace PiNodeMonitorWinForm
                         // Record to CSV
                         bool portsOk = lblPort01.Text == "Listening" && lblPort03.Text == "Listening";
                         _bonusService.RecordBonus(_currentBonus, avail.ToString("F2"), portsOk);
+                        
+                        // Set ToolTip with Trend Info
+                        string trend = _bonusService.GetBonusTrendReport();
+                        this.SafeInvoke(() => toolTip1.SetToolTip(lblBonus, trend));
                     }
                     _bonusUpdateCounter = 12; // Every 1 minute
                 }
@@ -835,7 +843,8 @@ namespace PiNodeMonitorWinForm
         private void btnShowHistory_Click(object sender, EventArgs e)
         {
             string csvPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Bonus_History.csv");
-            using (var historyForm = new HistoryForm(csvPath))
+            string trend = _bonusService.GetBonusTrendReport();
+            using (var historyForm = new HistoryForm(csvPath, trend))
             {
                 historyForm.ShowDialog();
             }

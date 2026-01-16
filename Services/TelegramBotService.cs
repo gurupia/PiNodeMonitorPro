@@ -60,52 +60,63 @@ namespace PiNodeMonitorWinForm.Services
                         foreach (var update in updates.Result)
                         {
                             _lastUpdateId = update.UpdateId;
-                            ProcessMessage(update.Message);
+                            // Use Task.Run to process message without blocking polling loop
+                            _ = Task.Run(async () => await ProcessMessageAsync(update.Message));
                         }
                     }
                 }
                 catch (TaskCanceledException) { break; }
-                catch (Exception) 
+                catch (HttpRequestException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TelegramBot] Network error: {ex.Message}. Retrying in 10s...");
+                    try { await Task.Delay(10000, token); } catch { break; }
+                }
+                catch (Exception ex) 
                 { 
+                    System.Diagnostics.Debug.WriteLine($"[TelegramBot] Critical Error: {ex.Message}");
                     try { await Task.Delay(5000, token); } catch { break; }
                 }
             }
         }
 
-        private async void ProcessMessage(TelegramMessage msg)
+        private async Task ProcessMessageAsync(TelegramMessage msg)
         {
-            if (msg == null || msg.Text == null) return;
-            if (msg.Chat.Id.ToString() != _allowedChatId) return;
+            try
+            {
+                if (msg == null || msg.Text == null) return;
+                if (msg.Chat.Id.ToString() != _allowedChatId) return;
 
-            string text = msg.Text.Trim().ToLower();
-            string reply = "";
+                string text = msg.Text.Trim().ToLower();
+                string reply = "";
 
-            if (text == "/start" || text == "/help")
-            {
-                reply = "🤖 **Pi Node Monitor Bot**\n\nCommand List:\n✅ `/status` - Check Node Health\n🔄 `/reboot` - Restart Node Container\n👋 `/ping` - Check Connection";
-            }
-            else if (text == "/status")
-            {
-                reply = OnStatusRequested != null ? OnStatusRequested() : "No status available.";
-            }
-            else if (text == "/reboot")
-            {
-                if (OnRestartRequested != null) OnRestartRequested();
-                reply = "🔄 Reboot command received. Attempting to restart container...";
-            }
-            else if (text == "/ping")
-            {
-                reply = "Pong! 🏓 I am alive.";
-            }
-            else
-            {
-                return; 
-            }
+                if (text == "/start" || text == "/help")
+                {
+                    reply = "🤖 **Pi Node Monitor Bot**\n\nCommand List:\n✅ `/status` - Check Node Health\n🔄 `/reboot` - Restart Node Container\n👋 `/ping` - Check Connection";
+                }
+                else if (text == "/status")
+                {
+                    reply = OnStatusRequested != null ? OnStatusRequested() : "No status available.";
+                }
+                else if (text == "/reboot")
+                {
+                    if (OnRestartRequested != null) OnRestartRequested();
+                    reply = "🔄 Reboot command received. Attempting to restart container...";
+                }
+                else if (text == "/ping")
+                {
+                    reply = "Pong! 🏓 I am alive.";
+                }
+                else
+                {
+                    return; 
+                }
 
-            if (!string.IsNullOrEmpty(reply))
-            {
-                await SendMessageAsync(msg.Chat.Id.ToString(), reply);
+                if (!string.IsNullOrEmpty(reply))
+                {
+                    await SendMessageAsync(msg.Chat.Id.ToString(), reply);
+                }
             }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TelegramBot] ProcessMessageAsync error: {ex.Message}"); }
         }
 
         public async Task SendMessageAsync(string chatId, string text)
