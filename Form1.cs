@@ -757,8 +757,20 @@ namespace PiNodeMonitorWinForm
                     // [신규] Smart Core 스위칭 (P/E 코어 동적 할당)
                     if (NodeUtility.Config.EnableCpuOptimization)
                     {
-                        if (state == "Synced!") PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.ECoresOnly);
-                        else if (state.Contains("Catching up")) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly);
+                        string affinityName = "All";
+                        if (state.StartsWith("Synced")) { PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.ECoresOnly); affinityName = "E-Cores"; }
+                        else if (state.Contains("Catching up")) { PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly); affinityName = "P-Cores"; }
+                        else { PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.All); affinityName = "All"; }
+
+                        this.SafeInvoke(() => {
+                            if (chkEnableCpuOpt != null) chkEnableCpuOpt.Text = $"Smart Core Switching ({affinityName})";
+                        });
+                    }
+                    else
+                    {
+                        this.SafeInvoke(() => {
+                            if (chkEnableCpuOpt != null) chkEnableCpuOpt.Text = "Smart Core Switching (OFF)";
+                        });
                     }
                 }
                 catch { }
@@ -960,6 +972,11 @@ namespace PiNodeMonitorWinForm
                 NodeUtility.Config.EnableCpuOptimization = chkEnableCpuOpt.Checked;
                 NodeUtility.SaveConfig();
                 if (!chkEnableCpuOpt.Checked) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.All);
+                else {
+                    // 체크 즉시 현재 상태에 맞춰 코어 배정
+                    if (_statState != null && _statState.StartsWith("Synced")) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.ECoresOnly);
+                    else if (_statState != null && _statState.Contains("Catching up")) PerfUtility.SetCpuAffinity(PerfUtility.CpuGroup.PCoresOnly);
+                }
             };
             
             this.lblGhostSpace = new Label { Text = "Ghost Space: Checking...", Location = new Point(10, 50), AutoSize = true, ForeColor = Color.Silver };
