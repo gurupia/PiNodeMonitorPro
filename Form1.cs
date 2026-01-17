@@ -59,6 +59,7 @@ namespace PiNodeMonitorWinForm
         private CheckBox chkEnableCpuOpt;
         private Button btnCompactDisk;
         private Label lblGhostSpace;
+        private Services.ThreadDirectorEngine _gtdEngine;
         
         // Node Stats Bridge
         // Node Stats fields REMOVED
@@ -104,6 +105,9 @@ namespace PiNodeMonitorWinForm
 
             InitializeMaintenanceUI();
             LoadConfig();
+
+            _gtdEngine = new Services.ThreadDirectorEngine();
+            _gtdEngine.LoadRules();
 
             _priceService = new PriceService();
             
@@ -765,6 +769,9 @@ namespace PiNodeMonitorWinForm
                         this.SafeInvoke(() => {
                             if (chkEnableCpuOpt != null) chkEnableCpuOpt.Text = $"Smart Core Switching ({affinityName})";
                         });
+
+                        // [신규] GTD 범용 엔진 규칙 적용 (노드 외 다른 프로세스들)
+                        if (_gtdEngine != null) _gtdEngine.ApplyRules();
                     }
                     else
                     {
@@ -996,9 +1003,15 @@ namespace PiNodeMonitorWinForm
                 }
             };
 
+            var btnEditGtd = new Button { Text = "⚙ rules.json", Location = new Point(140, 50), Size = new Size(80, 22), BackColor = Color.FromArgb(64,64,64), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8) };
+            btnEditGtd.Click += (s, e) => {
+                try { Process.Start("notepad.exe", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gtd_rules.json")); } catch { }
+            };
+
             this.groupBoxMaintenance.Controls.Add(chkEnableCpuOpt);
             this.groupBoxMaintenance.Controls.Add(lblGhostSpace);
             this.groupBoxMaintenance.Controls.Add(btnCompactDisk);
+            this.groupBoxMaintenance.Controls.Add(btnEditGtd);
             this.leftFlow.Controls.Add(groupBoxMaintenance);
         }
 
