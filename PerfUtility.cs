@@ -65,5 +65,18 @@ namespace PiNodeMonitorWinForm
                 System.Diagnostics.Debug.WriteLine($"[PerfUtility] Failed to set CPU affinity: {ex.Message}");
             }
         }
+
+        public static void Log(string msg)
+        {
+            try
+            {
+                string logDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!System.IO.Directory.Exists(logDir)) System.IO.Directory.CreateDirectory(logDir);
+                string path = System.IO.Path.Combine(logDir, $"monitor_{DateTime.Now:yyyyMMdd}.log");
+                System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
+                System.Diagnostics.Debug.WriteLine(msg);
+            }
+            catch { }
+        }
     }
 }

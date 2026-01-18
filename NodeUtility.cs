@@ -9,10 +9,12 @@ namespace PiNodeMonitorWinForm
     public static class NodeUtility
     {
         public static string CurrentContainerName { get; set; } = "testnet2";
-        public static string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        public static string ConfigDir = AppDomain.CurrentDomain.BaseDirectory;
+        public static string ConfigPath = Path.Combine(ConfigDir, "config.json");
         public class NodeConfig { 
             public string CustomDockerPath { get; set; } 
             public string CustomPiAppPath { get; set; } 
+            public string LogPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             public bool EnableCpuOptimization { get; set; } = false; // 기본값 OFF
             public bool EnableDiskWeightAlert { get; set; } = true;
             public DateTime LastDiskCompacted { get; set; } = DateTime.MinValue;
@@ -56,26 +58,90 @@ if ($p) {{
             } catch { return false; }
         }
 
-        // [체크/동작] 파워쉘 통합 실행 헬퍼
-        private static async Task<string> RunPSAsync(string cmd) {
+        // [체크/동작] 파워쉘 통합 실행 헬퍼 (구형 - 점진적 폐기)
+        public static async Task<string> RunPSAsync(string cmd) {
             try {
                 var psi = new ProcessStartInfo("powershell", $"-NoProfile -Command \"{cmd}\"") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
                 using (var p = Process.Start(psi)) return await p.StandardOutput.ReadToEndAsync();
             } catch { return ""; }
         }
 
+        // [신규] WSL 직접 실행 헬퍼 (저부하)
+        public static async Task<string> RunWslCommandAsync(string cmd)
+        {
+            return await Task.Run(async () =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "wsl.exe",
+                        Arguments = cmd,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = Encoding.UTF8
+                    };
+                    using (var process = Process.Start(psi))
+                    {
+                        if (process == null) return "";
+                        string output = await process.StandardOutput.ReadToEndAsync();
+                        process.WaitForExit(2000);
+                        return output;
+                    }
+                }
+                catch { return ""; }
+            });
+        }
+
+        public static async Task<string> RunDockerCommandAsync(string arguments)
+        {
+            return await Task.Run(async () =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "docker",
+                        Arguments = arguments,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using (var process = Process.Start(psi))
+                    {
+                        if (process == null) return null;
+                        string output = await process.StandardOutput.ReadToEndAsync();
+                        await Task.Run(() => process.WaitForExit(3000));
+                        return output;
+                    }
+                }
+                catch { return null; }
+            });
+        }
+
         public static async Task<bool> IsDockerRunningAsync() => Process.GetProcessesByName("Docker Desktop").Length > 0;
-        public static async Task<bool> IsWslInstalledAsync() => File.Exists(Environment.SystemDirectory + "\\wsl.exe") || (await RunPSAsync("wsl --status")).Contains("T");
-        public static async Task<bool> IsWindowsFeatureEnabledAsync(string feature) => (await RunPSAsync($"if((Get-WindowsOptionalFeature -Online -FeatureName {feature} -ErrorAction SilentlyContinue).State -eq 'Enabled'){{'T'}}")).Contains("T") || await IsDockerRunningAsync();
+        public static async Task<bool> IsWslInstalledAsync() => File.Exists(Environment.SystemDirectory + "\\wsl.exe");
+        
+        public static async Task<bool> IsWindowsFeatureEnabledAsync(string feature) => (await RunWslCommandAsync("--status")).Contains("T") || await IsDockerRunningAsync(); // Simplified for performance, check if WSL is active as proxy for features
         
         public static async Task EnableWindowsFeaturesAsync() => await RunCommandAsync("powershell", "-NoProfile -Command \"Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart; Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart\"", true);
-        public static async Task UpdateWslAsync() => await RunCommandAsync("wsl", "--update", true);
-        public static async Task<bool> IsFirewallRulePresentAsync() => (await RunPSAsync("if(netstat -an | Select-String ':31401|:31402|:31403'){{'T'}}")).Contains("T");
-        public static async Task<bool> IsImagePresentAsync(string n) => (await RunPSAsync($"if(docker images | Select-String '{n}'){{'T'}}")).Contains("T");
-        public static async Task<bool> IsContainerExistAsync(string n) => (await RunPSAsync($"if(docker ps -a --format '{{{{.Names}}}}' | Select-String '{n}'){{'T'}}")).Contains("T");
+        public static async Task UpdateWslAsync() => await RunCommandAsync("wsl.exe", "--update", true);
+        
+        public static async Task<bool> IsFirewallRulePresentAsync() 
+        {
+            // Direct WSL netstat is faster than PS netstat
+            string output = await RunWslCommandAsync("-d docker-desktop-data -- netstat -an");
+            return output.Contains(":31401") || output.Contains(":31402") || output.Contains(":31403");
+        }
+
+        public static async Task<bool> IsImagePresentAsync(string n) => (await RunDockerCommandAsync($"images -q {n}")).Length > 0;
+        public static async Task<bool> IsContainerExistAsync(string n) => (await RunDockerCommandAsync($"ps -a --filter name={n} --format \"{{{{.Names}}}}\"")).Contains(n);
         
         public static async Task DetectContainerNameAsync() {
-            var o = await RunPSAsync("docker ps --format '{{.Names}}'");
+            var o = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
             if (o.Contains("pi") || o.Contains("consensus")) CurrentContainerName = o.Contains("consensus") ? "pi-consensus" : "testnet2";
         }
 
@@ -134,9 +200,10 @@ if ($p) {{
 
             try {
                 long physicalSize = new FileInfo(vhdxPath).Length;
-                // WSL 내부 실제 점유량 확인 (df -B1 / | tail -1)
-                string output = await RunPSAsync("wsl -d docker-desktop-data -- df -B1 / --output=used | tail -1");
-                if (long.TryParse(output.Trim(), out long usedSize)) {
+                // WSL 내부 실제 점유량 확인 (Direct exec is faster)
+                string output = await RunWslCommandAsync("-d docker-desktop-data -- df -B1 / --output=used");
+                var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length >= 2 && long.TryParse(lines[1].Trim(), out long usedSize)) {
                     double diff = (double)(physicalSize - usedSize) / (1024 * 1024 * 1024);
                     return diff > 0 ? diff : 0;
                 }
@@ -149,7 +216,7 @@ if ($p) {{
             if (string.IsNullOrEmpty(vhdxPath)) return false;
 
             // 1순위: wsl --manage (v1.1.0+)
-            var versionInfo = await RunPSAsync("wsl --version");
+            var versionInfo = await RunWslCommandAsync("--version");
             if (versionInfo.Contains("1.1.0") || versionInfo.Contains("2.")) {
                 await RunCommandAsync("wsl", "--manage docker-desktop-data --compact", true);
                 return true;
