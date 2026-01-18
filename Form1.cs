@@ -36,7 +36,9 @@ namespace PiNodeMonitorWinForm
         public event EventHandler PiShowClicked;
         public event EventHandler PiMinimizeClicked;
         public event EventHandler DiagnosticsClicked;
-        public event EventHandler CompactClicked; // NEW
+        public event Action CompactClicked; // Changed to Action to match IMainView
+        public event Action ThemeToggleClicked; // NEW
+        public event Action<double> ManualBonusSaved;
 
         // Tray Icon
         private NotifyIcon notifyIcon;
@@ -113,6 +115,12 @@ namespace PiNodeMonitorWinForm
                 PerfUtility.Log("Button Click: ChangeWallet");
                 ChangeWalletClicked?.Invoke(this, EventArgs.Empty);
             };
+            if (btnSaveManualBonus != null) btnSaveManualBonus.Click += (s, e) => {
+                if (double.TryParse(txtManualBonus.Text, out double bonus)) {
+                    ManualBonusSaved?.Invoke(bonus);
+                    MessageBox.Show("Node Bonus Saved!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                } else MessageBox.Show("Invalid Number format.");
+            };
             if (btnHelp != null) btnHelp.Click += (s, e) => { 
                 PerfUtility.Log("Button Click: Help");
                 using (var help = new HelpForm()) help.ShowDialog(this); 
@@ -130,8 +138,12 @@ namespace PiNodeMonitorWinForm
             if (menuPiStart != null) menuPiStart.Click += (s, e) => PiStartClicked?.Invoke(this, EventArgs.Empty);
             if (menuPiShow != null) menuPiShow.Click += (s, e) => PiShowClicked?.Invoke(this, EventArgs.Empty);
             if (menuPiMinimize != null) menuPiMinimize.Click += (s, e) => PiMinimizeClicked?.Invoke(this, EventArgs.Empty);
+            if (menuSetupWizard != null) menuSetupWizard.Click += (s, e) => {
+                using (var wizard = new SetupWizardForm()) wizard.ShowDialog(this);
+            };
             if (menuDiagnostics != null) menuDiagnostics.Click += (s, e) => DiagnosticsClicked?.Invoke(this, EventArgs.Empty);
-            if (menuCompact != null) menuCompact.Click += (s, e) => CompactClicked?.Invoke(this, EventArgs.Empty);
+            if (menuCompact != null) menuCompact.Click += (s, e) => CompactClicked?.Invoke();
+            if (menuTheme != null) menuTheme.Click += (s, e) => ThemeToggleClicked?.Invoke();
         }
 
         public void InvokeUI(Action action)
@@ -222,24 +234,56 @@ namespace PiNodeMonitorWinForm
             }
         }
 
-        private void ApplyDarkBlueTheme()
+        public void SetManualBonus(double bonus)
         {
-            this.BackColor = Color.FromArgb(25, 25, 25);
+            InvokeUI(() => {
+                txtManualBonus.Text = bonus.ToString("F4");
+            });
+        }
+
+        public void ToggleTheme(bool isDark)
+        {
+            Color backColor = isDark ? Color.FromArgb(25, 25, 25) : Color.WhiteSmoke;
+            Color foreColor = isDark ? Color.White : Color.Black;
+            Color secondaryBack = isDark ? Color.FromArgb(45, 45, 48) : Color.FromArgb(240, 240, 240);
+            
+            this.BackColor = backColor;
+            this.ForeColor = foreColor;
+
+            if (menuStrip1 != null) { menuStrip1.BackColor = secondaryBack; menuStrip1.ForeColor = foreColor; }
+            if (statusStrip1 != null) { statusStrip1.BackColor = secondaryBack; statusStrip1.ForeColor = foreColor; }
+            if (menuTools != null) menuTools.ForeColor = foreColor;
+
             void RecursivelyStyle(Control c)
             {
                 foreach (Control child in c.Controls)
                 {
-                    if (child is Label || child is GroupBox || child is CheckBox || child is RadioButton)
-                        child.ForeColor = Color.White;
+                    if (child is GroupBox gb) gb.ForeColor = foreColor;
+                    if (child is CheckBox chk) chk.ForeColor = foreColor;
+                    if (child is RadioButton rb) rb.ForeColor = foreColor;
+                    if (child is Label lbl) {
+                        // Don't overwrite colored status labels if possible, but hard to distinguish by name dynamically.
+                        // We will rely on Presenter to refresh data/colors immediately after toggle.
+                        // For static labels (Title), set color.
+                        lbl.ForeColor = foreColor; 
+                    }
+                    
                     if (child.HasChildren) RecursivelyStyle(child);
                 }
             }
             RecursivelyStyle(this);
-            if (lblBalance != null) lblBalance.ForeColor = Color.Gold;
+
+            // Special overrides
+            if (lblBalance != null) lblBalance.ForeColor = isDark ? Color.Gold : Color.DarkGoldenrod;
             if (txtPublicKey != null) {
-                txtPublicKey.BackColor = Color.FromArgb(25, 35, 50);
-                txtPublicKey.ForeColor = Color.White;
+                txtPublicKey.BackColor = isDark ? Color.FromArgb(25, 35, 50) : Color.White;
+                txtPublicKey.ForeColor = foreColor;
             }
+            
+            // Re-apply special static logic
+            if (lblTunnelLink != null && lblTunnelLink.Text.Contains("Not Active")) lblTunnelLink.ForeColor = Color.LightGray;
         }
+
+        private void ApplyDarkBlueTheme() { ToggleTheme(true); } // Legacy wrapper if needed
     }
 }

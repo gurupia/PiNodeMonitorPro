@@ -19,23 +19,35 @@ namespace PiNodeMonitorWinForm
         {
             this.FormBorderStyle = FormBorderStyle.None;
             this.Size = new Size(300, 100);
-            this.BackColor = Color.FromArgb(20, 20, 20);
-            this.ForeColor = Color.White;
             this.TopMost = true;
             this.ShowInTaskbar = false;
-            
+            ApplyTheme();
+
             // Drag Support
             this.MouseDown += (s, e) => { isDragging = true; dragCursorPoint = Cursor.Position; dragFormPoint = this.Location; };
-            this.MouseMove += (s, e) => { if (isDragging) { Point dif = Point.Subtract(Cursor.Position, new Size(dragCursorPoint)); this.Location = Point.Add(dragFormPoint, new Size(dif)); } };
+            this.MouseMove += (s, e) => { 
+                if (isDragging) { 
+                    Point dif = Point.Subtract(Cursor.Position, new Size(dragCursorPoint)); 
+                    this.Location = Point.Add(dragFormPoint, new Size(dif)); 
+                } 
+            };
             this.MouseUp += (s, e) => isDragging = false;
 
             InitializeUI();
         }
 
+        private void ApplyTheme()
+        {
+            try {
+                bool isDark = NodeUtility.Config.IsDarkMode;
+                this.BackColor = isDark ? Color.FromArgb(20, 20, 20) : Color.WhiteSmoke;
+                this.ForeColor = isDark ? Color.White : Color.Black;
+            } catch { }
+        }
+
         private void InitializeUI()
         {
             var lblTitle = new Label { Text = "Pi Node Monitor (Mini)", Location = new Point(10, 5), AutoSize = true, ForeColor = Color.Gray, Font = new Font("Segoe UI", 8) };
-            lblTitle.MouseDown += (s, e) => OnMouseDown(e); // Pass drag
             this.Controls.Add(lblTitle);
 
             lblStatus = new Label { Text = "State: ...", Location = new Point(10, 25), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.LimeGreen };
@@ -49,7 +61,14 @@ namespace PiNodeMonitorWinForm
 
             btnExpand = new Button { Text = "⬜", Location = new Point(270, 5), Size = new Size(25, 25), FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
             btnExpand.FlatAppearance.BorderSize = 0;
-            btnExpand.Click += (s, e) => { this.Hide(); Application.OpenForms["Form1"].Show(); Application.OpenForms["Form1"].WindowState = FormWindowState.Normal; };
+            btnExpand.Click += (s, e) => { 
+                this.Hide(); 
+                var mainForm = Application.OpenForms["Form1"];
+                if (mainForm != null) {
+                    mainForm.Show();
+                    mainForm.WindowState = FormWindowState.Normal;
+                }
+            };
             this.Controls.Add(btnExpand);
         }
 

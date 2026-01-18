@@ -57,6 +57,13 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
             _view.ToggleNodeClicked += async (s, e) => await ToggleNodeAsync();
             _view.CompactDiskClicked += async (s, e) => await CompactDiskAsync();
             _view.SaveWalletClicked += (s, e) => _walletService.SaveKey(_view.WalletPublicKey); 
+            _view.ChangeWalletClicked += (s, e) => {
+                try { new SmsSettingsForm().Show(); } catch (Exception ex) { _view.ShowError("Notify Settings Open Fail: " + ex.Message); }
+            };
+            _view.ManualBonusSaved += (bonus) => {
+                NodeUtility.Config.ManualNodeBonus = bonus;
+                NodeUtility.SaveConfig();
+            };
             _view.SecureLinkClicked += async (s, e) => await ToggleTunnelAsync();
             
             // Re-bind all broken buttons
@@ -82,6 +89,13 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
             };
 
             _view.ViewLoaded += (s, e) => {
+                // Apply initial theme from config
+                _view.ToggleTheme(NodeUtility.Config.IsDarkMode);
+                _view.SetManualBonus(NodeUtility.Config.ManualNodeBonus);
+                
+                // Initial detection
+                _ = NodeUtility.DetectContainerNameAsync(); 
+                
                 _refreshTimer.Start();
                 _ = OnTimerTick();
             };
@@ -108,7 +122,13 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
                 try { new DiagnosticsForm().Show(); } catch (Exception ex) { _view.ShowError("Failed to launch diagnostics: " + ex.Message); }
             };
 
-            _view.CompactClicked += (s, e) => ToggleCompactMode(); // NEW
+            _view.CompactClicked += () => ToggleCompactMode(); // Updated to Action
+            _view.ThemeToggleClicked += () => {
+                NodeUtility.Config.IsDarkMode = !NodeUtility.Config.IsDarkMode;
+                NodeUtility.SaveConfig();
+                _view.ToggleTheme(NodeUtility.Config.IsDarkMode);
+                _ = UpdateNodeMetricsFastAsync(); // Force UI Refresh
+            };
 
             // Log event wiring for debugging
             _view.UpdateSystemStatus("Presenter Initialized", Color.Gray);
@@ -156,132 +176,100 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
             _totalSeconds += 3;
             _currentMetrics.Uptime = TimeSpan.FromSeconds(_totalSeconds);
 
-            // Fetch high-frequency data (Node Info API)
+            if (string.IsNullOrEmpty(_currentMetrics.ActiveContainerName)) {
+                 await NodeUtility.DetectContainerNameAsync();
+                 _currentMetrics.ActiveContainerName = NodeUtility.CurrentContainerName;
+            }
+
             bool dataFetched = false;
-            try
-            {
-                using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(1.5) })
-                {
-                    var response = await client.GetAsync("http://localhost:31401/node/info");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string json = await response.Content.ReadAsStringAsync();
-                        var obj = JObject.Parse(json);
-                        _currentMetrics.ConsensusState = obj["consensus"]?["state"]?.ToString() ?? "Running";
-                        _currentMetrics.LocalBlockNum = obj["consensus"]?["local_block"]?.ToString() ?? "---";
-                        _currentMetrics.RemoteBlockNum = obj["consensus"]?["latest_block"]?.ToString() ?? "---";
-                        _currentMetrics.LatestLedgerNum = _currentMetrics.RemoteBlockNum;
-                        dataFetched = true;
-                    }
-                }
-            } catch { }
-
-            if (!dataFetched && !string.IsNullOrEmpty(_currentMetrics.ActiveContainerName))
-            {
+            
+            // Tier 1: Local Host 31401 (Pi API)
+            dataFetched = await TryUpdateFromUrlAsync("http://localhost:31401/node/info", isStellarInfo: false);
+            
+            // Tier 2: Docker Exec 31401 (Pi API)
+            if (!dataFetched && !string.IsNullOrEmpty(_currentMetrics.ActiveContainerName)) {
                 string execJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} curl -s http://localhost:31401/node/info");
-                if (!string.IsNullOrEmpty(execJson) && execJson.Trim().StartsWith("{"))
-                {
-                    try {
-                        var obj = JObject.Parse(execJson);
-                        _currentMetrics.ConsensusState = obj["consensus"]?["state"]?.ToString() ?? "Running";
-                        _currentMetrics.LocalBlockNum = obj["consensus"]?["local_block"]?.ToString() ?? "---";
-                        _currentMetrics.RemoteBlockNum = obj["consensus"]?["latest_block"]?.ToString() ?? "---";
-                        _currentMetrics.LatestLedgerNum = _currentMetrics.RemoteBlockNum;
-                        dataFetched = true;
-                    } catch { }
+                dataFetched = ParseNodeInfoJson(execJson, isStellarInfo: false);
+            }
+
+            // Tier 3: Stellar Core Failover (Host 31402 or Docker 11626)
+            if (!dataFetched) {
+                dataFetched = await TryUpdateFromUrlAsync("http://localhost:31402/info", isStellarInfo: true);
+                if (!dataFetched && !string.IsNullOrEmpty(_currentMetrics.ActiveContainerName)) {
+                    string sJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} wget -qO- http://localhost:11626/info");
+                    if (string.IsNullOrEmpty(sJson)) sJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} curl -s http://localhost:11626/info");
+                    dataFetched = ParseNodeInfoJson(sJson, isStellarInfo: true);
                 }
+            }
 
-                // [Failover] Try Stellar Core Native API (Port 31402) via Docker or Host
-                if (!dataFetched) {
-                     try {
-                        // Try Host 31402 first
-                        using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(1) }) {
-                             string coreJson = await client.GetStringAsync("http://localhost:31402/info");
-                             var coreObj = JObject.Parse(coreJson);
-                             _currentMetrics.LocalBlockNum = coreObj["info"]?["ledger"]?["num"]?.ToString() ?? "---";
-                             _currentMetrics.ConsensusState = coreObj["info"]?["state"]?.ToString() ?? "Synced!";
-                             _currentMetrics.RemoteBlockNum = _currentMetrics.LocalBlockNum; 
-                             _currentMetrics.LatestLedgerNum = _currentMetrics.LocalBlockNum; // FIX: Assign this for Consensus Box
-                             
-                             // [New] Map Missing Basic Info from Stellar Core
-                             _currentMetrics.ProtocolVersion = coreObj["info"]?["protocol_version"]?.ToString() ?? "v?.?";
-                             string build = coreObj["info"]?["build"]?.ToString() ?? "---";
-                             _currentMetrics.CoreBuild = (build.Length > 20) ? build.Substring(0, 17) + "..." : build;
-                             
-                             // [New] Map Peers (Approximate)
-                             int inPeers = coreObj["info"]?["peers"]?["authenticated_count"]?.ToObject<int>() ?? 0;
-                             int pending = coreObj["info"]?["peers"]?["pending_count"]?.ToObject<int>() ?? 0;
-                             _currentMetrics.IncomingConnections = inPeers.ToString(); 
-                             _currentMetrics.OutgoingConnections = pending.ToString(); // Mapping pending to outgoing as approx
-
-                             dataFetched = true;
-                        }
-                     } catch {
-                         // Try Docker Internal 31402
-                         string internalJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} wget -qO- http://localhost:11626/info");
-                         if (string.IsNullOrEmpty(internalJson)) internalJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} curl -s http://localhost:11626/info");
-                         
-                         if (!string.IsNullOrEmpty(internalJson) && internalJson.StartsWith("{")) {
-                             try {
-                                 var coreObj = JObject.Parse(internalJson);
-                                 _currentMetrics.LocalBlockNum = coreObj["info"]?["ledger"]?["num"]?.ToString() ?? "---";
-                                 var state = coreObj["info"]?["state"]?.ToString() ?? "Synced!";
-                                 _currentMetrics.ConsensusState = state;
-                                 _currentMetrics.RemoteBlockNum = _currentMetrics.LocalBlockNum;
-                                 _currentMetrics.LatestLedgerNum = _currentMetrics.LocalBlockNum; // FIX: Assign for Internal Failover
-                                 
-                                 // [New] Map Missing Internal
-                                 _currentMetrics.ProtocolVersion = coreObj["info"]?["protocol_version"]?.ToString() ?? "v?.?";
-                                 string build = coreObj["info"]?["build"]?.ToString() ?? "---";
-                                 _currentMetrics.CoreBuild = (build.Length > 20) ? build.Substring(0, 17) + "..." : build;
-                                 
-                                 _currentMetrics.CoreBuild = (build.Length > 20) ? build.Substring(0, 17) + "..." : build;
-                                 
-                                 // [New] Improved Network Stats via Netstat (More Accurate than 'info' endpoint)
-                                 try {
-                                     string netstat = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} netstat -tan");
-                                     if (!string.IsNullOrEmpty(netstat)) {
-                                         // Incoming: Local Address ends with :31404 and State ESTABLISHED
-                                         int incoming = System.Text.RegularExpressions.Regex.Matches(netstat, @":31404\s+.*ESTABLISHED").Count;
-                                         // Outgoing: Remote Address ends with :31404 and State ESTABLISHED (Exclude incoming lines)
-                                         // Simplification: Total 31404 established - Incoming
-                                         // Actually 'incoming' regex above matches lines where Local IS 31404.
-                                         // We need to be careful. Netstat output: Proto Recv-Q Send-Q Local Address Foreign Address State
-                                         // Local :31404 -> Incoming. 
-                                         // Foreign :31404 -> Outgoing.
-                                         
-                                         int totalEstablished = System.Text.RegularExpressions.Regex.Matches(netstat, @":31404\s+ESTABLISHED|ESTABLISHED\s+.*:31404").Count;
-                                         // Count lines where Local Address column contains :31404
-                                         // This is tricky with simple regex without column parsing, but usually safe enough.
-                                         // Let's rely on standard 'authenticated_count' for TOTAL and guess split if netstat fails, 
-                                         // but user wants accuracy. 
-                                         // Better Regex for Incoming:  @"\s:31404\s+.*\sESTABLISHED" (Local column)
-                                         int inc = System.Text.RegularExpressions.Regex.Matches(netstat, @"\d+\.\d+\.\d+\.\d+:31404\s+\d+\.\d+\.\d+\.\d+:\d+\s+ESTABLISHED").Count;
-                                         
-                                         // Total peers from API
-                                         int totalPeers = coreObj["info"]?["peers"]?["authenticated_count"]?.ToObject<int>() ?? 0;
-                                         
-                                         _currentMetrics.IncomingConnections = inc.ToString();
-                                         _currentMetrics.OutgoingConnections = (totalPeers - inc).ToString();
-                                         if (int.Parse(_currentMetrics.OutgoingConnections) < 0) _currentMetrics.OutgoingConnections = "0";
-                                     }
-                                 } catch {
-                                     // Fallback
-                                     int total = coreObj["info"]?["peers"]?["authenticated_count"]?.ToObject<int>() ?? 0;
-                                     _currentMetrics.IncomingConnections = "?";
-                                     _currentMetrics.OutgoingConnections = total.ToString();
-                                 }
-
-                                 dataFetched = true;
-                             } catch {}
-                         }
-                     }
-                }
-                
-                if (!dataFetched) _currentMetrics.ConsensusState = "API Error (Check Ports)";
+            if (!dataFetched) {
+                _currentMetrics.ConsensusState = "API Error (Check Ports)";
+                _currentMetrics.LedgerAge = "---";
             }
 
             _view.InvokeUI(() => _view.UpdateNodeMetrics(_currentMetrics));
+        }
+
+        private async Task<bool> TryUpdateFromUrlAsync(string url, bool isStellarInfo)
+        {
+            try {
+                using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(1.5) }) {
+                    string json = await client.GetStringAsync(url);
+                    return ParseNodeInfoJson(json, isStellarInfo);
+                }
+            } catch { return false; }
+        }
+
+        private bool ParseNodeInfoJson(string json, bool isStellarInfo)
+        {
+            if (string.IsNullOrEmpty(json) || !json.Trim().StartsWith("{")) return false;
+            try {
+                var obj = JObject.Parse(json);
+                if (isStellarInfo) {
+                    var info = obj["info"];
+                    if (info == null) return false;
+                    
+                    _currentMetrics.ConsensusState = info["state"]?.ToString() ?? "Synced!";
+                    _currentMetrics.LocalBlockNum = info["ledger"]?["num"]?.ToString() ?? "---";
+                    _currentMetrics.RemoteBlockNum = _currentMetrics.LocalBlockNum;
+                    _currentMetrics.LatestLedgerNum = _currentMetrics.LocalBlockNum;
+                    _currentMetrics.LedgerAge = (info["ledger"]?["age"]?.ToString() ?? "0") + "s";
+                    _currentMetrics.ProtocolVersion = info["protocol_version"]?.ToString() ?? "v?.?";
+                    
+                    string build = info["build"]?.ToString() ?? "---";
+                    _currentMetrics.CoreBuild = (build.Length > 20) ? build.Substring(0, 17) + "..." : build;
+
+                    var peers = info["peers"];
+                    if (peers != null) {
+                        int auth = peers["authenticated_count"]?.ToObject<int>() ?? 0;
+                        int pend = peers["pending_count"]?.ToObject<int>() ?? 0;
+                        
+                        // [Fix] In official Pi App, 'Outgoing' is the number of active peers you are connected to (authenticated).
+                        // 'Incoming' are peers connecting TO you.
+                        _currentMetrics.OutgoingConnections = auth.ToString();
+                        _currentMetrics.IncomingConnections = "0"; // Inbound info not in basic Stellar /info
+                        _currentMetrics.IsSupporting = "No"; // Supporting requires Incoming > 0
+                    }
+                } else {
+                    var con = obj["consensus"];
+                    _currentMetrics.ConsensusState = con?["state"]?.ToString() ?? "Running";
+                    _currentMetrics.LocalBlockNum = con?["local_block"]?.ToString() ?? "---";
+                    _currentMetrics.RemoteBlockNum = con?["latest_block"]?.ToString() ?? "---";
+                    _currentMetrics.LatestLedgerNum = _currentMetrics.RemoteBlockNum;
+                    // Calculate Age if possible from local block time if available? No, usually not in this API
+                    _currentMetrics.LedgerAge = "0s"; 
+
+                    var peers = obj["peers"];
+                    if (peers != null) {
+                        int inc = peers["incoming_count"]?.ToObject<int>() ?? 0;
+                        int outg = peers["outgoing_count"]?.ToObject<int>() ?? 0;
+                        _currentMetrics.IncomingConnections = inc.ToString();
+                        _currentMetrics.OutgoingConnections = outg.ToString();
+                        _currentMetrics.IsSupporting = inc > 0 ? "Yes" : "No";
+                    }
+                }
+                return true;
+            } catch { return false; }
         }
 
         private async Task UpdateNodeMetricsMediumAsync()
@@ -311,7 +299,10 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
                 _currentMetrics.Port31401Status = await NodeUtility.IsFirewallRulePresentAsync() ? "Open" : "Closed"; // Note: This check in NodeUtility covers all ports
                 _currentMetrics.Port31402Status = _currentMetrics.Port31401Status;
                 _currentMetrics.Port31403Status = _currentMetrics.Port31401Status;
-                _currentMetrics.IsSupporting = _currentMetrics.Port31401Status == "Open" ? "Yes" : "No";
+                
+                // [Update] IsSupporting should primarily reflect IncomingConnections > 0
+                if (int.TryParse(_currentMetrics.IncomingConnections, out int i) && i > 0) _currentMetrics.IsSupporting = "Yes";
+                else _currentMetrics.IsSupporting = _currentMetrics.Port31401Status == "Open" ? "Possibly" : "No";
             }
             else { _currentMetrics.ConsensusState = "Stopped"; _currentMetrics.ActiveContainerName = "None"; }
 

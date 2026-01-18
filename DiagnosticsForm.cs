@@ -20,10 +20,21 @@ namespace PiNodeMonitorWinForm
             this.Text = "System Health Diagnostics";
             this.Size = new Size(600, 450);
             this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(30, 30, 30);
-            this.ForeColor = Color.White;
+            ApplyTheme();
 
             InitializeUI();
+        }
+
+        private void ApplyTheme()
+        {
+            bool isDark = NodeUtility.Config.IsDarkMode;
+            this.BackColor = isDark ? Color.FromArgb(30, 30, 30) : Color.WhiteSmoke;
+            this.ForeColor = isDark ? Color.White : Color.Black;
+            if (lstLog != null)
+            {
+                lstLog.BackColor = isDark ? Color.FromArgb(45, 45, 48) : Color.White;
+                lstLog.ForeColor = isDark ? Color.LightGray : Color.Black;
+            }
         }
 
         private void InitializeUI()

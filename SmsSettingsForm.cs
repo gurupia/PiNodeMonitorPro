@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using PiNodeMonitorWinForm.Services.Sms;
+using System.Threading.Tasks;
 
 namespace PiNodeMonitorWinForm
 {
@@ -43,57 +44,61 @@ namespace PiNodeMonitorWinForm
             this.Text = "Notification Settings";
             this.Size = new Size(480, 520);
             this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(45, 65, 95);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
 
-            // Load Config
-            var svc = new SmsService();
-            _config = svc.GetConfig() ?? new SmsConfigModel();
+            ApplyTheme();
 
-            // Tabs
-            tabControl = new TabControl();
-            tabControl.Location = new Point(10, 10);
-            tabControl.Size = new Size(445, 410);
-            
-            tabSms = new TabPage("SMS (Paid)");
-            tabSms.BackColor = Color.FromArgb(50, 70, 100);
-            
-            tabTele = new TabPage("Telegram (Free)");
-            tabTele.BackColor = Color.FromArgb(50, 70, 100);
+            try {
+                // Load Config
+                var svc = new SmsService();
+                _config = svc.GetConfig() ?? new SmsConfigModel();
 
-            tabControl.TabPages.Add(tabSms);
-            tabControl.TabPages.Add(tabTele);
-            this.Controls.Add(tabControl);
+                // Tabs
+                tabControl = new TabControl();
+                tabControl.Location = new Point(10, 10);
+                tabControl.Size = new Size(445, 410);
+                
+                tabSms = new TabPage("SMS (Paid)");
+                tabTele = new TabPage("Telegram (Free)");
+                
+                bool isDark = NodeUtility.Config.IsDarkMode;
+                Color tabBack = isDark ? Color.FromArgb(45, 45, 48) : Color.FromArgb(50, 70, 100);
+                tabSms.BackColor = tabBack;
+                tabTele.BackColor = tabBack;
 
-            // --- SMS Tab Setup ---
-            InitSmsTab();
+                tabControl.TabPages.Add(tabSms);
+                tabControl.TabPages.Add(tabTele);
+                this.Controls.Add(tabControl);
 
-            // --- Telegram Tab Setup ---
-            InitTelegramTab();
+                // --- SMS Tab Setup ---
+                InitSmsTab();
 
-            // --- Bottom Buttons ---
-            btnSave = new Button();
-            btnSave.Text = "💾 Save All";
-            btnSave.Location = new Point(130, 435);
-            btnSave.Size = new Size(100, 35);
-            btnSave.BackColor = Color.ForestGreen;
-            btnSave.ForeColor = Color.White;
-            btnSave.FlatStyle = FlatStyle.Flat;
-            btnSave.Click += BtnSave_Click;
-            this.Controls.Add(btnSave);
+                // --- Telegram Tab Setup ---
+                InitTelegramTab();
 
-            btnTest = new Button();
-            btnTest.Text = "📨 Test";
-            btnTest.Location = new Point(240, 435);
-            btnTest.Size = new Size(80, 35);
-            btnTest.BackColor = Color.SteelBlue;
-            btnTest.ForeColor = Color.White;
-            btnTest.FlatStyle = FlatStyle.Flat;
-            btnTest.Click += BtnTest_Click;
-            this.Controls.Add(btnTest);
+                // --- Bottom Buttons ---
+                btnSave = new Button { Text = "💾 Save All", Location = new Point(130, 435), Size = new Size(100, 35), BackColor = Color.ForestGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                btnSave.Click += BtnSave_Click;
+                this.Controls.Add(btnSave);
 
-            LoadDataToUI();
+                btnTest = new Button { Text = "📨 Test", Location = new Point(240, 435), Size = new Size(80, 35), BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                btnTest.Click += BtnTest_Click;
+                this.Controls.Add(btnTest);
+
+                LoadDataToUI();
+            } catch (Exception ex) {
+                MessageBox.Show("Initialization Error: " + ex.Message);
+            }
+        }
+
+        private void ApplyTheme()
+        {
+            try {
+                bool isDark = NodeUtility.Config.IsDarkMode;
+                this.BackColor = isDark ? Color.FromArgb(30, 30, 30) : Color.FromArgb(45, 65, 95);
+                this.ForeColor = Color.White; // Always white on these shades
+            } catch { }
         }
 
         private void InitSmsTab()
@@ -192,20 +197,14 @@ namespace PiNodeMonitorWinForm
 
         private Label AddLabel(TabPage page, string text, int x, int y)
         {
-            Label lbl = new Label();
-            lbl.Text = text;
-            lbl.Location = new Point(x, y + 3);
-            lbl.ForeColor = Color.White;
-            lbl.AutoSize = true;
+            Label lbl = new Label { Text = text, Location = new Point(x, y + 3), ForeColor = Color.White, AutoSize = true };
             page.Controls.Add(lbl);
             return lbl;
         }
 
         private TextBox AddTextBox(TabPage page, int x, int y, int w)
         {
-            TextBox txt = new TextBox();
-            txt.Location = new Point(x, y);
-            txt.Size = new Size(w, 25);
+            TextBox txt = new TextBox { Location = new Point(x, y), Size = new Size(w, 25) };
             page.Controls.Add(txt);
             return txt;
         }
@@ -215,7 +214,8 @@ namespace PiNodeMonitorWinForm
             _isLoading = true;
             try
             {
-                // SMS
+                if (_config == null) return;
+
                 if (!string.IsNullOrEmpty(_config.SelectedProvider))
                      cmbProvider.SelectedItem = _config.SelectedProvider;
                 else
@@ -227,7 +227,6 @@ namespace PiNodeMonitorWinForm
                 txtTemplate.Text = _config.Template;
                 chkNodeAlert.Checked = _config.IsNodeAlertEnabled;
 
-                // Telegram
                 chkEnableTelegram.Checked = _config.EnableTelegram;
                 txtBotToken.Text = _config.TelegramBotToken;
                 txtChatId.Text = _config.TelegramChatId;
@@ -237,8 +236,8 @@ namespace PiNodeMonitorWinForm
 
         private void UpdateUIForProvider()
         {
-            _activeProvider = _config.SelectedProvider;
-            cmbProvider.Text = _activeProvider;
+            if (_config == null) return;
+            _activeProvider = cmbProvider.Text;
 
             if (_activeProvider == "SOLAPI")
             {
@@ -268,12 +267,11 @@ namespace PiNodeMonitorWinForm
 
         private void SaveCurrentUIToModel()
         {
-            // SMS Common
+            if (_config == null) return;
             _config.TargetPhone = txtTarget.Text;
             _config.Template = txtTemplate.Text;
             _config.IsNodeAlertEnabled = chkNodeAlert.Checked;
 
-            // SMS Provider Specific
             if (_activeProvider == "SOLAPI")
             {
                 _config.Solapi.Key1 = txtKey1.Text;
@@ -287,7 +285,6 @@ namespace PiNodeMonitorWinForm
                 _config.Twilio.SenderPhone = txtSender.Text;
             }
 
-            // Telegram
             _config.EnableTelegram = chkEnableTelegram.Checked;
             _config.TelegramBotToken = txtBotToken.Text;
             _config.TelegramChatId = txtChatId.Text;
@@ -308,22 +305,12 @@ namespace PiNodeMonitorWinForm
             btnTest.Enabled = false;
             try
             {
-                SaveCurrentUIToModel(); // Update model with latest inputs
-                
+                SaveCurrentUIToModel();
                 string msgTemplate = txtTemplate.Text;
                 if (string.IsNullOrWhiteSpace(msgTemplate)) msgTemplate = "[PiNode] Test Message!";
                 string testMsg = msgTemplate.Replace("{amount}", "3.14").Replace("{total}", "1234.56");
 
-                var svc = new SmsService();
-                // Inject updated config temporarily? 
-                // SmsService loads from file. We just saved to model but maybe not to file yet if we clicked Test before Save.
-                // To test properly without saving to disk, we need to pass config to Service, or Save Temp.
-                // Creating a one-off logic here is easiest.
-
                 bool smsSent = false;
-                // Test SMS (Only if on SMS Tab or always?) -> Let's test based on visual context or just try both if enabled.
-                
-                // 1. Test SMS (if valid)
                 if (!string.IsNullOrEmpty(txtKey1.Text))
                 {
                     ISmsProvider provider = null;
@@ -332,34 +319,21 @@ namespace PiNodeMonitorWinForm
                     else if (cmbProvider.Text == "TWILIO")
                         provider = new TwilioProvider(txtKey1.Text, txtKey2.Text, txtSender.Text);
                     
-                    if (provider != null)
-                    {
-                        try {
-                            smsSent = await provider.SendSmsAsync(txtTarget.Text, testMsg);
-                        } catch {}
-                    }
+                    if (provider != null) smsSent = await provider.SendSmsAsync(txtTarget.Text, testMsg);
                 }
 
-                // 2. Test Telegram
                 bool telegramSent = false;
                 if (chkEnableTelegram.Checked && !string.IsNullOrEmpty(txtBotToken.Text) && !string.IsNullOrEmpty(txtChatId.Text))
                 {
-                    try
-                    {
-                        using var client = new System.Net.Http.HttpClient();
-                        string url = $"https://api.telegram.org/bot{txtBotToken.Text}/sendMessage?chat_id={txtChatId.Text}&text={System.Uri.EscapeDataString(testMsg + " (Telegram Test)")}";
-                        var response = await client.GetAsync(url);
-                        telegramSent = response.IsSuccessStatusCode;
-                    }
-                    catch { }
+                    using var client = new System.Net.Http.HttpClient();
+                    string url = $"https://api.telegram.org/bot{txtBotToken.Text}/sendMessage?chat_id={txtChatId.Text}&text={System.Uri.EscapeDataString(testMsg + " (Telegram Test)")}";
+                    var response = await client.GetAsync(url);
+                    telegramSent = response.IsSuccessStatusCode;
                 }
 
                 MessageBox.Show($"Test Signal Sent!\n(SMS Result: {smsSent})\n(Telegram Result: {telegramSent})", "Test Complete");
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
             finally { btnTest.Enabled = true; }
         }
     }

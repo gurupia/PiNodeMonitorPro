@@ -85,7 +85,9 @@
             this.lblAvailability = new System.Windows.Forms.Label();
             this.btnHelp = new System.Windows.Forms.Button();
             this.btnShowHistory = new System.Windows.Forms.Button();
-            // Bonus UI Removed
+            this.lblManualBonusTitle = new System.Windows.Forms.Label();
+            this.txtManualBonus = new System.Windows.Forms.TextBox();
+            this.btnSaveManualBonus = new System.Windows.Forms.Button();
 
             // Controls - Port Status
             this.label12 = new System.Windows.Forms.Label();
@@ -129,7 +131,9 @@
 
             this.menuTools = new System.Windows.Forms.ToolStripMenuItem();
             this.menuDiagnostics = new System.Windows.Forms.ToolStripMenuItem();
-            this.menuCompact = new System.Windows.Forms.ToolStripMenuItem(); // NEW
+            this.menuCompact = new System.Windows.Forms.ToolStripMenuItem(); 
+            this.menuTheme = new System.Windows.Forms.ToolStripMenuItem(); // NEW
+            this.menuSetupWizard = new System.Windows.Forms.ToolStripMenuItem();
 
             // Status Strip
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
@@ -226,9 +230,13 @@
 
             // Tools Menu
             this.menuTools.Name = "menuTools";
-            this.menuTools.Size = new System.Drawing.Size(50, 20);
+            this.menuTools.Size = new System.Drawing.Size(46, 20);
             this.menuTools.Text = "Tools";
-            this.menuTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { this.menuDiagnostics });
+            this.menuTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuDiagnostics,
+            this.menuCompact,
+            this.menuTheme,
+            this.menuSetupWizard});
 
             this.menuDiagnostics.Name = "menuDiagnostics";
             this.menuDiagnostics.Size = new System.Drawing.Size(180, 22);
@@ -239,6 +247,10 @@
             this.menuCompact.Text = "Compact Mode (Mini)";
             
             this.menuTools.DropDownItems.Add(this.menuCompact);
+
+            this.menuSetupWizard.Name = "menuSetupWizard";
+            this.menuSetupWizard.Size = new System.Drawing.Size(180, 22);
+            this.menuSetupWizard.Text = "Run Environment Check";
 
             // 
             // mainFlow
@@ -432,32 +444,53 @@
             // Session Stats
             this.groupBox6.Controls.Add(this.lblUptime);
             this.groupBox6.Controls.Add(this.lblAvailability);
+            this.groupBox6.Controls.Add(this.lblManualBonusTitle);
+            this.groupBox6.Controls.Add(this.txtManualBonus);
+            this.groupBox6.Controls.Add(this.btnSaveManualBonus);
             this.groupBox6.Controls.Add(this.btnShowHistory);
             this.groupBox6.Controls.Add(this.btnHelp);
             this.groupBox6.ForeColor = System.Drawing.Color.White;
             this.groupBox6.Text = "Session Stats";
-            this.groupBox6.Size = new System.Drawing.Size(320, 134); // Fixed width logic
+            this.groupBox6.Size = new System.Drawing.Size(320, 90);
             this.groupBox6.Margin = new System.Windows.Forms.Padding(0, 0, 5, 0);
 
             this.lblUptime.Location = new System.Drawing.Point(10, 25);
             this.lblUptime.AutoSize = true;
             this.lblUptime.Text = "Uptime: 00:00:00";
 
-            this.lblAvailability.Location = new System.Drawing.Point(10, 50);
+            this.lblAvailability.Location = new System.Drawing.Point(140, 25);
             this.lblAvailability.AutoSize = true;
-            this.lblAvailability.Text = "Availability: Checking...";
+            this.lblAvailability.Text = "Avail: Checking...";
 
-            this.btnHelp.Location = new System.Drawing.Point(10, 90);
-            this.btnHelp.Size = new System.Drawing.Size(60, 30);
-            this.btnHelp.Text = "Help";
-            this.btnHelp.BackColor = System.Drawing.Color.SandyBrown;
-            this.btnHelp.ForeColor = System.Drawing.Color.Black;
+            this.lblManualBonusTitle.Location = new System.Drawing.Point(10, 55);
+            this.lblManualBonusTitle.AutoSize = true;
+            this.lblManualBonusTitle.Text = "Node Bonus:";
+            this.lblManualBonusTitle.ForeColor = System.Drawing.Color.Gold;
 
-            this.btnShowHistory.Location = new System.Drawing.Point(80, 90);
-            this.btnShowHistory.Size = new System.Drawing.Size(80, 30);
+            this.txtManualBonus.Location = new System.Drawing.Point(85, 52);
+            this.txtManualBonus.Size = new System.Drawing.Size(50, 21);
+            this.txtManualBonus.BackColor = System.Drawing.Color.FromArgb(25, 35, 50);
+            this.txtManualBonus.ForeColor = System.Drawing.Color.White;
+
+            this.btnSaveManualBonus.Location = new System.Drawing.Point(140, 50);
+            this.btnSaveManualBonus.Size = new System.Drawing.Size(30, 25);
+            this.btnSaveManualBonus.Text = "\uD83D\uDCBE";
+            this.btnSaveManualBonus.BackColor = System.Drawing.Color.FromArgb(64, 64, 64);
+            this.btnSaveManualBonus.UseVisualStyleBackColor = false;
+
+            this.btnShowHistory.Location = new System.Drawing.Point(175, 50);
+            this.btnShowHistory.Size = new System.Drawing.Size(75, 25);
             this.btnShowHistory.Text = "History";
             this.btnShowHistory.BackColor = System.Drawing.Color.SandyBrown;
             this.btnShowHistory.ForeColor = System.Drawing.Color.Black;
+            this.btnShowHistory.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+
+            this.btnHelp.Location = new System.Drawing.Point(255, 50);
+            this.btnHelp.Size = new System.Drawing.Size(55, 25);
+            this.btnHelp.Text = "Help";
+            this.btnHelp.BackColor = System.Drawing.Color.SandyBrown;
+            this.btnHelp.ForeColor = System.Drawing.Color.Black;
+            this.btnHelp.Font = new System.Drawing.Font("Segoe UI", 8.5F);
 
             // Port Status
             this.groupBox5.Controls.Add(this.label12); this.groupBox5.Controls.Add(this.lblPort01);
@@ -714,8 +747,9 @@
         private System.Windows.Forms.Label lblAvailability;
         private System.Windows.Forms.Button btnHelp;
         private System.Windows.Forms.Button btnShowHistory;
-        // private System.Windows.Forms.TextBox txtManualBonus; // Removed
-        // private System.Windows.Forms.Button btnSetBonus;     // Removed
+        private System.Windows.Forms.Label lblManualBonusTitle;
+        private System.Windows.Forms.TextBox txtManualBonus;
+        private System.Windows.Forms.Button btnSaveManualBonus;
 
         // Port Status
         private System.Windows.Forms.Label label12;
@@ -763,5 +797,7 @@
         public System.Windows.Forms.ToolStripMenuItem menuTools;
         public System.Windows.Forms.ToolStripMenuItem menuDiagnostics;
         public System.Windows.Forms.ToolStripMenuItem menuCompact;
+        public System.Windows.Forms.ToolStripMenuItem menuTheme;
+        public System.Windows.Forms.ToolStripMenuItem menuSetupWizard;
     }
 }

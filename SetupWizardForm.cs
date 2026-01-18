@@ -153,6 +153,9 @@ namespace PiNodeMonitorWinForm
                     else
                     {
                         UpdateStepUI(true, "Environment Ready!", "Windows features are configured correctly.", "");
+                        // Auto-Advance if successful
+                        await Task.Delay(500);
+                        LoadStep(2);
                     }
                     break;
 
@@ -168,6 +171,10 @@ namespace PiNodeMonitorWinForm
                     }
 
                     UpdateStepUI(dockerOk, "Docker is Running!", "Docker is NOT running or not installed.", "Download Docker");
+                    if (dockerOk) {
+                        await Task.Delay(500);
+                        LoadStep(3);
+                    }
                     break;
 
                 case 3:
@@ -183,6 +190,10 @@ namespace PiNodeMonitorWinForm
                     btnManual.Text = containerOk ? "Custom Container Name" : "Set Manual App Path";
 
                     UpdateStepUI(containerOk, "Node Container Found!", "Container missing.", "Open Guide/App");
+                    if (containerOk) {
+                        await Task.Delay(500);
+                        LoadStep(4);
+                    }
                     break;
 
                 case 4:

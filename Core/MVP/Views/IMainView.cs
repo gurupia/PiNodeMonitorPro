@@ -16,6 +16,7 @@ namespace PiNodeMonitorWinForm.Core.MVP.Views
         event EventHandler CompactDiskClicked;
         event EventHandler SaveWalletClicked;
         event EventHandler ChangeWalletClicked;
+        event Action<double> ManualBonusSaved;
         
         // Menu Events
         event EventHandler DockerRestartClicked;
@@ -30,15 +31,19 @@ namespace PiNodeMonitorWinForm.Core.MVP.Views
         event EventHandler PiShowClicked;
         event EventHandler PiMinimizeClicked;
         event EventHandler DiagnosticsClicked;
-        event EventHandler CompactClicked; // NEW
 
         // UI Updates
         string WalletPublicKey { get; }
         void InvokeUI(Action action);
-        void UpdateWallet(WalletData wallet);
+        event Action CompactClicked;
+        event Action ThemeToggleClicked;
+        
         void UpdateNodeMetrics(NodeMetrics metrics);
-        void UpdateSystemStatus(string status, Color color);
         void ShowError(string message);
+        void UpdateSystemStatus(string status, System.Drawing.Color color);
         void UpdateSecureLinkStatus(string url, bool active);
+        void UpdateWallet(WalletData wallet);
+        void ToggleTheme(bool isDark);
+        void SetManualBonus(double bonus);
     }
 }

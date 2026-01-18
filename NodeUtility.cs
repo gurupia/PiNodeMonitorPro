@@ -11,15 +11,19 @@ namespace PiNodeMonitorWinForm
         public static string CurrentContainerName { get; set; } = "testnet2";
         public static string ConfigDir = AppDomain.CurrentDomain.BaseDirectory;
         public static string ConfigPath = Path.Combine(ConfigDir, "config.json");
-        public class NodeConfig { 
-            public string CustomDockerPath { get; set; } 
-            public string CustomPiAppPath { get; set; } 
+        public class MonitorConfig
+        {
+            public bool IsDarkMode { get; set; } = true; // Default to Dark
+            public string CustomDockerPath { get; set; }
+            public string CustomPiAppPath { get; set; }
+            public string DockerContainerName { get; set; }
             public string LogPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             public bool EnableCpuOptimization { get; set; } = false; // 기본값 OFF
             public bool EnableDiskWeightAlert { get; set; } = true;
             public DateTime LastDiskCompacted { get; set; } = DateTime.MinValue;
+            public double ManualNodeBonus { get; set; } = 0.0;
         }
-        public static NodeConfig Config { get; private set; }
+        public static MonitorConfig Config { get; private set; }
 
         // Cache Management
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (object Value, DateTime Expiry)> _cache 
@@ -43,8 +47,8 @@ namespace PiNodeMonitorWinForm
 
         static NodeUtility() { LoadConfig(); }
         public static void LoadConfig() {
-            try { if (File.Exists(ConfigPath)) Config = Newtonsoft.Json.JsonConvert.DeserializeObject<NodeConfig>(File.ReadAllText(ConfigPath)); } catch { }
-            Config = Config ?? new NodeConfig();
+            try { if (File.Exists(ConfigPath)) Config = Newtonsoft.Json.JsonConvert.DeserializeObject<MonitorConfig>(File.ReadAllText(ConfigPath)); } catch { }
+            Config = Config ?? new MonitorConfig();
         }
         public static void SaveConfig() { try { File.WriteAllText(ConfigPath, Newtonsoft.Json.JsonConvert.SerializeObject(Config, Newtonsoft.Json.Formatting.Indented)); } catch { } }
 
