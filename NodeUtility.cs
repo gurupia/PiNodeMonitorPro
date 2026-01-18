@@ -21,6 +21,26 @@ namespace PiNodeMonitorWinForm
         }
         public static NodeConfig Config { get; private set; }
 
+        // Cache Management
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (object Value, DateTime Expiry)> _cache 
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, (object Value, DateTime Expiry)>();
+
+        private static T GetOrUpdateCache<T>(string key, int ttlSeconds, Func<T> updateFunc)
+        {
+            if (_cache.TryGetValue(key, out var entry) && entry.Expiry > DateTime.Now) return (T)entry.Value;
+            T newValue = updateFunc();
+            _cache[key] = (newValue, DateTime.Now.AddSeconds(ttlSeconds));
+            return newValue;
+        }
+
+        private static async Task<T> GetOrUpdateCacheAsync<T>(string key, int ttlSeconds, Func<Task<T>> updateFunc)
+        {
+            if (_cache.TryGetValue(key, out var entry) && entry.Expiry > DateTime.Now) return (T)entry.Value;
+            T newValue = await updateFunc();
+            _cache[key] = (newValue, DateTime.Now.AddSeconds(ttlSeconds));
+            return newValue;
+        }
+
         static NodeUtility() { LoadConfig(); }
         public static void LoadConfig() {
             try { if (File.Exists(ConfigPath)) Config = Newtonsoft.Json.JsonConvert.DeserializeObject<NodeConfig>(File.ReadAllText(ConfigPath)); } catch { }
@@ -28,34 +48,47 @@ namespace PiNodeMonitorWinForm
         }
         public static void SaveConfig() { try { File.WriteAllText(ConfigPath, Newtonsoft.Json.JsonConvert.SerializeObject(Config, Newtonsoft.Json.Formatting.Indented)); } catch { } }
 
-        // [활성화] 보안 강화: 검증된 로직을 내장하여 실행 (외부 파일 변조 방지 + SysNative 64비트 호환)
-        public static bool ActivateProcess(string name) {
-            try {
-                string script = $@"
-$ErrorActionPreference = 'SilentlyContinue'
-$p = Get-Process '{name}' | Where-Object {{ $_.MainWindowHandle -ne 0 }} | Select-Object -First 1
-if ($p) {{
-    $sig = @'
-    [DllImport(""user32.dll"")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    [DllImport(""user32.dll"")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-'@
-    $w = Add-Type -MemberDefinition $sig -Name ""Win32Util"" -Namespace ""Gurupia"" -PassThru
-    $w::ShowWindow($p.MainWindowHandle, 9)
-    $w::SetForegroundWindow($p.MainWindowHandle)
-}}";
-                string b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-                
-                // 3. 64비트 환경이므로 기본 powershell 호출 (자동으로 System32의 64비트 버전 사용됨)
-                var psi = new ProcessStartInfo("powershell", $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {b64}") {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
+        // [Optimization] Native P/Invoke for Window Management (Removes PowerShell Overhead)
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-                using (var p = Process.Start(psi)) {
-                    p.WaitForExit();
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+        public static bool ActivateProcess(string name) 
+        {
+            try 
+            {
+                var process = System.Linq.Enumerable.FirstOrDefault(
+                    Process.GetProcessesByName(name.Replace(".exe", "")), 
+                    p => p.MainWindowHandle != IntPtr.Zero
+                );
+
+                if (process != null) 
+                {
+                    ShowWindow(process.MainWindowHandle, 9); // SW_RESTORE = 9
+                    SetForegroundWindow(process.MainWindowHandle);
+                    return true;
                 }
-                return true;
-            } catch { return false; }
+            } 
+            catch { }
+            return false;
+        }
+
+        public static void KillProcessByName(string name)
+        {
+            try
+            {
+                var targetName = name.Replace(".exe", "");
+                foreach (var process in Process.GetProcessesByName(targetName))
+                {
+                    try { process.Kill(); process.WaitForExit(1000); } catch { }
+                }
+            }
+            catch { }
         }
 
         // [체크/동작] 파워쉘 통합 실행 헬퍼 (구형 - 점진적 폐기)
@@ -113,36 +146,50 @@ if ($p) {{
                     using (var process = Process.Start(psi))
                     {
                         if (process == null) return null;
-                        string output = await process.StandardOutput.ReadToEndAsync();
-                        await Task.Run(() => process.WaitForExit(3000));
-                        return output;
+                        
+                        // Use a shorter timeout for UI responsiveness
+                        if (!process.WaitForExit(3000)) 
+                        {
+                            try { process.Kill(); } catch { }
+                            return null;
+                        }
+
+                        return await process.StandardOutput.ReadToEndAsync();
                     }
                 }
-                catch { return null; }
+                catch { return ""; }
             });
         }
 
-        public static async Task<bool> IsDockerRunningAsync() => Process.GetProcessesByName("Docker Desktop").Length > 0;
+        public static async Task<bool> IsDockerRunningAsync() => Process.GetProcessesByName("Docker Desktop").Length > 0 || Process.GetProcessesByName("docker").Length > 0;
         public static async Task<bool> IsWslInstalledAsync() => File.Exists(Environment.SystemDirectory + "\\wsl.exe");
         
-        public static async Task<bool> IsWindowsFeatureEnabledAsync(string feature) => (await RunWslCommandAsync("--status")).Contains("T") || await IsDockerRunningAsync(); // Simplified for performance, check if WSL is active as proxy for features
+        public static async Task<bool> IsWindowsFeatureEnabledAsync(string feature) => (await RunWslCommandAsync("--status") ?? "").Contains("T") || await IsDockerRunningAsync(); // Simplified for performance, check if WSL is active as proxy for features
         
         public static async Task EnableWindowsFeaturesAsync() => await RunCommandAsync("powershell", "-NoProfile -Command \"Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart; Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart\"", true);
         public static async Task UpdateWslAsync() => await RunCommandAsync("wsl.exe", "--update", true);
         
         public static async Task<bool> IsFirewallRulePresentAsync() 
         {
-            // Direct WSL netstat is faster than PS netstat
-            string output = await RunWslCommandAsync("-d docker-desktop-data -- netstat -an");
-            return output.Contains(":31401") || output.Contains(":31402") || output.Contains(":31403");
+            return await GetOrUpdateCacheAsync<bool>("FirewallRule", 60, async () => {
+                // Direct WSL netstat is faster than PS netstat
+                string output = await RunWslCommandAsync("-d docker-desktop-data -- netstat -an") ?? "";
+                return output.Contains(":31401") || output.Contains(":31402") || output.Contains(":31403");
+            });
         }
 
-        public static async Task<bool> IsImagePresentAsync(string n) => (await RunDockerCommandAsync($"images -q {n}")).Length > 0;
-        public static async Task<bool> IsContainerExistAsync(string n) => (await RunDockerCommandAsync($"ps -a --filter name={n} --format \"{{{{.Names}}}}\"")).Contains(n);
+        public static async Task<bool> IsImagePresentAsync(string n) => (await RunDockerCommandAsync($"images -q {n}") ?? "").Length > 0;
+        public static async Task<bool> IsContainerExistAsync(string n) => (await RunDockerCommandAsync($"ps -a --filter name={n} --format \"{{{{.Names}}}}\"") ?? "").Contains(n);
         
         public static async Task DetectContainerNameAsync() {
-            var o = await RunDockerCommandAsync("ps --format \"{{.Names}}\"");
-            if (o.Contains("pi") || o.Contains("consensus")) CurrentContainerName = o.Contains("consensus") ? "pi-consensus" : "testnet2";
+            var o = await RunDockerCommandAsync("ps --format \"{{.Names}}\"") ?? "";
+            if (!string.IsNullOrEmpty(o))
+            {
+                if (o.Contains("testnet2")) CurrentContainerName = "testnet2";
+                else if (o.Contains("pi-consensus")) CurrentContainerName = "pi-consensus";
+                else if (o.Contains("pi-node")) CurrentContainerName = "pi-node";
+                else CurrentContainerName = o.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+            }
         }
 
         public static async Task RunCommandAsync(string file, string args, bool admin = false) {
@@ -152,18 +199,21 @@ if ($p) {{
         }
 
         public static void RebootSystem() => Process.Start("shutdown", "/r /t 5");
-        public static void MinimizeProcess(string name) { 
-            try {
-                string script = $@"
-$p = Get-Process '{name}' -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowHandle -ne 0 }} | Select-Object -First 1
-if ($p) {{
-    $sig = '[DllImport(""user32.dll"")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
-    $type = Add-Type -MemberDefinition $sig -Name ""Win32Min"" -Namespace ""Gurupia"" -PassThru
-    $type::ShowWindowAsync($p.MainWindowHandle, 6) # SW_MINIMIZE = 6
-}}";
-                string b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-                Process.Start(new ProcessStartInfo("powershell", $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {b64}") { CreateNoWindow = true, UseShellExecute = false });
-            } catch { }
+        public static void MinimizeProcess(string name) 
+        { 
+            try 
+            {
+                 var process = System.Linq.Enumerable.FirstOrDefault(
+                    Process.GetProcessesByName(name.Replace(".exe", "")), 
+                    p => p.MainWindowHandle != IntPtr.Zero
+                );
+
+                if (process != null)
+                {
+                    ShowWindowAsync(process.MainWindowHandle, 6); // SW_MINIMIZE = 6
+                }
+            } 
+            catch { }
         }
         public static async Task<string> GetNodeUuidAsync() {
             try {
@@ -195,19 +245,21 @@ if ($p) {{
 
         // [신규] Ghost Space (버려지는 용량) 계산 (GB 단위)
         public static async Task<double> GetGhostSpaceGbAsync() {
-            string vhdxPath = GetWslVhdxPath();
-            if (string.IsNullOrEmpty(vhdxPath)) return 0;
+            return await GetOrUpdateCacheAsync<double>("GhostSpace", 300, async () => {
+                string vhdxPath = GetWslVhdxPath();
+                if (string.IsNullOrEmpty(vhdxPath)) return 0.0;
 
-            try {
-                long physicalSize = new FileInfo(vhdxPath).Length;
-                // WSL 내부 실제 점유량 확인 (Direct exec is faster)
-                string output = await RunWslCommandAsync("-d docker-desktop-data -- df -B1 / --output=used");
-                var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                if (lines.Length >= 2 && long.TryParse(lines[1].Trim(), out long usedSize)) {
-                    double diff = (double)(physicalSize - usedSize) / (1024 * 1024 * 1024);
-                    return diff > 0 ? diff : 0;
-                }
-            } catch { } return 0;
+                try {
+                    long physicalSize = new FileInfo(vhdxPath).Length;
+                    // WSL 내부 실제 점유량 확인 (Direct exec is faster)
+                    string output = await RunWslCommandAsync("-d docker-desktop-data -- df -B1 / --output=used");
+                    var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (lines.Length >= 2 && long.TryParse(lines[1].Trim(), out long usedSize)) {
+                        double diff = (double)(physicalSize - usedSize) / (1024 * 1024 * 1024);
+                        return diff > 0 ? diff : 0;
+                    }
+                } catch { } return 0.0;
+            });
         }
 
         // [신규] 최적화 엔진 실행 (Selective Compact)

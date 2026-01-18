@@ -15,6 +15,22 @@ namespace PiNodeMonitorWinForm.Services
         private const string ApiUrl = "https://api.mainnet.minepi.com/accounts/";
         private static readonly HttpClient _client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
 
+        private async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action, int maxRetries = 3)
+        {
+            int retryCount = 0;
+            while (true)
+            {
+                try { return await action(); }
+                catch (Exception ex) when (retryCount < maxRetries)
+                {
+                    retryCount++;
+                    await Task.Delay(1000 * retryCount);
+                    System.Diagnostics.Debug.WriteLine($"[WalletService] Retry {retryCount} due to: {ex.Message}");
+                }
+                catch { throw; }
+            }
+        }
+
         public string PublicKey { get; private set; }
 
         public WalletService()
@@ -72,7 +88,7 @@ namespace PiNodeMonitorWinForm.Services
 
             try
             {
-                var response = await _client.GetStringAsync(ApiUrl + PublicKey);
+                var response = await ExecuteWithRetryAsync(() => _client.GetStringAsync(ApiUrl + PublicKey));
                 var account = JsonConvert.DeserializeObject<PiAccountResponse>(response);
                 
                 if (account?.Balances != null)

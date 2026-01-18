@@ -15,6 +15,22 @@ namespace PiNodeMonitorWinForm.Services
         private double _lastPriceKrw = 0;
         private DateTime _lastUpdate = DateTime.MinValue;
 
+        private async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action, int maxRetries = 2)
+        {
+            int retryCount = 0;
+            while (true)
+            {
+                try { return await action(); }
+                catch (Exception ex) when (retryCount < maxRetries)
+                {
+                    retryCount++;
+                    await Task.Delay(2000 * retryCount);
+                    PerfUtility.Log($"[PriceService] Retry {retryCount} due to: {ex.Message}");
+                }
+                catch { throw; }
+            }
+        }
+
         public double CurrentPriceUsd => _lastPriceUsd;
         public double CurrentPriceKrw => _lastPriceKrw;
 
@@ -29,7 +45,7 @@ namespace PiNodeMonitorWinForm.Services
             try
             {
                 _client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                var response = await _client.GetStringAsync(CoinGeckoUrl);
+                var response = await ExecuteWithRetryAsync(() => _client.GetStringAsync(CoinGeckoUrl));
                 var json = JObject.Parse(response);
 
                 var piData = json["pi-network-iou"];

@@ -12,6 +12,19 @@ namespace PiNodeMonitorWinForm
         [STAThread]
         static void Main()
         {
+            // Global Exception Logging
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += (s, e) => {
+                PerfUtility.Log(e.Exception, "Global ThreadException");
+                MessageBox.Show("An unexpected error occurred. See logs/ for details.\n\n" + e.Exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => {
+                if (e.ExceptionObject is Exception ex) {
+                    PerfUtility.Log(ex, "Global UnhandledException");
+                    MessageBox.Show("A critical error occurred. The app will terminate.\n\n" + ex.Message, "Critical Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                }
+            };
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 

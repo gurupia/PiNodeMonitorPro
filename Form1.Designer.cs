@@ -110,6 +110,26 @@
             this.lblTunnelLink = new System.Windows.Forms.Label();
             // btnSmsConfig removed/hidden as per previous code but declared in fields. Let's declare it to avoid errors but not add it if not needed.
             this.btnSmsConfig = new System.Windows.Forms.Button();
+            
+            // MenuStrip
+            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.menuDocker = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDockerShow = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDockerMinimize = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDockerRestart = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDockerStop = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDockerStart = new System.Windows.Forms.ToolStripMenuItem();
+            
+            this.menuPiNode = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuPiShow = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuPiMinimize = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuPiStart = new System.Windows.Forms.ToolStripMenuItem(); // NEW
+            this.menuPiRestart = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuPiStop = new System.Windows.Forms.ToolStripMenuItem();
+
+            this.menuTools = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuDiagnostics = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuCompact = new System.Windows.Forms.ToolStripMenuItem(); // NEW
 
             // Status Strip
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
@@ -136,7 +156,89 @@
             this.pnlActions.SuspendLayout();
             this.groupBoxQuickActions.SuspendLayout();
             this.statusStrip1.SuspendLayout();
+            this.statusStrip1.SuspendLayout();
+            this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
+
+            // 
+            // menuStrip1
+            // 
+            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { this.menuDocker, this.menuPiNode, this.menuTools });
+            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.Size = new System.Drawing.Size(550, 24);
+            this.menuStrip1.TabIndex = 0;
+            this.menuStrip1.Text = "menuStrip1";
+            this.menuStrip1.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
+            this.menuStrip1.ForeColor = System.Drawing.Color.White;
+
+            // Docker Menu
+            this.menuDocker.Name = "menuDocker";
+            this.menuDocker.Size = new System.Drawing.Size(56, 20);
+            this.menuDocker.Text = "Docker";
+            this.menuDocker.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { this.menuDockerShow, this.menuDockerMinimize, new System.Windows.Forms.ToolStripSeparator(), this.menuDockerRestart, this.menuDockerStop, this.menuDockerStart });
+
+            this.menuDockerShow.Name = "menuDockerShow";
+            this.menuDockerShow.Size = new System.Drawing.Size(180, 22);
+            this.menuDockerShow.Text = "Show (Activate)";
+
+            this.menuDockerMinimize.Name = "menuDockerMinimize";
+            this.menuDockerMinimize.Size = new System.Drawing.Size(180, 22);
+            this.menuDockerMinimize.Text = "Minimize to Tray";
+
+            this.menuDockerRestart.Name = "menuDockerRestart";
+            this.menuDockerRestart.Size = new System.Drawing.Size(180, 22);
+            this.menuDockerRestart.Text = "Restart Docker";
+            
+            this.menuDockerStop.Name = "menuDockerStop";
+            this.menuDockerStop.Size = new System.Drawing.Size(180, 22);
+            this.menuDockerStop.Text = "Stop Docker";
+
+            this.menuDockerStart.Name = "menuDockerStart";
+            this.menuDockerStart.Size = new System.Drawing.Size(180, 22);
+            this.menuDockerStart.Text = "Start Docker";
+
+            // Pi Node Menu
+            this.menuPiNode.Name = "menuPiNode";
+            this.menuPiNode.Size = new System.Drawing.Size(60, 20);
+            this.menuPiNode.Text = "Pi Node";
+            this.menuPiNode.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { this.menuPiShow, this.menuPiMinimize, new System.Windows.Forms.ToolStripSeparator(), this.menuPiStart, this.menuPiRestart, this.menuPiStop });
+
+            this.menuPiShow.Name = "menuPiShow";
+            this.menuPiShow.Size = new System.Drawing.Size(180, 22);
+            this.menuPiShow.Text = "Show (Activate)";
+
+            this.menuPiMinimize.Name = "menuPiMinimize";
+            this.menuPiMinimize.Size = new System.Drawing.Size(180, 22);
+            this.menuPiMinimize.Text = "Minimize (Hide)";
+
+            this.menuPiStart.Name = "menuPiStart";
+            this.menuPiStart.Size = new System.Drawing.Size(180, 22);
+            this.menuPiStart.Text = "Start Pi Node";
+
+            this.menuPiRestart.Name = "menuPiRestart";
+            this.menuPiRestart.Size = new System.Drawing.Size(180, 22);
+            this.menuPiRestart.Text = "Restart Pi Node";
+
+            this.menuPiStop.Name = "menuPiStop";
+            this.menuPiStop.Size = new System.Drawing.Size(180, 22);
+            this.menuPiStop.Text = "Termitate Pi Node";
+
+            // Tools Menu
+            this.menuTools.Name = "menuTools";
+            this.menuTools.Size = new System.Drawing.Size(50, 20);
+            this.menuTools.Text = "Tools";
+            this.menuTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { this.menuDiagnostics });
+
+            this.menuDiagnostics.Name = "menuDiagnostics";
+            this.menuDiagnostics.Size = new System.Drawing.Size(180, 22);
+            this.menuDiagnostics.Text = "Health Diagnostics";
+
+            this.menuCompact.Name = "menuCompact";
+            this.menuCompact.Size = new System.Drawing.Size(180, 22);
+            this.menuCompact.Text = "Compact Mode (Mini)";
+            
+            this.menuTools.DropDownItems.Add(this.menuCompact);
 
             // 
             // mainFlow
@@ -149,9 +251,11 @@
             this.mainFlow.Controls.Add(this.pnlActions);
             this.mainFlow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainFlow.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
-            this.mainFlow.Location = new System.Drawing.Point(0, 0);
+            this.mainFlow.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mainFlow.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.mainFlow.Location = new System.Drawing.Point(0, 24); 
             this.mainFlow.Name = "mainFlow";
-            this.mainFlow.Padding = new System.Windows.Forms.Padding(10);
+            this.mainFlow.Padding = new System.Windows.Forms.Padding(10, 40, 0, 0); // INCREASED Top Padding to 40 (Definitive Fix)
             this.mainFlow.Size = new System.Drawing.Size(550, 920);
             this.mainFlow.WrapContents = false;
 
@@ -506,8 +610,10 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
             this.ClientSize = new System.Drawing.Size(550, 920);
-            this.Controls.Add(this.mainFlow);
+            this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.statusStrip1);
+            this.Controls.Add(this.mainFlow);
+            this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Pi Node Monitor Pro v1.8.26 (Hybrid Layout)";
@@ -531,6 +637,8 @@
             this.pnlActions.ResumeLayout(false); this.pnlActions.PerformLayout();
             this.groupBoxQuickActions.ResumeLayout(false); this.groupBoxQuickActions.PerformLayout();
             this.statusStrip1.ResumeLayout(false); this.statusStrip1.PerformLayout();
+            this.statusStrip1.ResumeLayout(false); this.statusStrip1.PerformLayout();
+            this.menuStrip1.ResumeLayout(false); this.menuStrip1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -639,5 +747,21 @@
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.MenuStrip menuStrip1;
+        public System.Windows.Forms.ToolStripMenuItem menuDocker;
+        public System.Windows.Forms.ToolStripMenuItem menuDockerShow;
+        public System.Windows.Forms.ToolStripMenuItem menuDockerMinimize;
+        public System.Windows.Forms.ToolStripMenuItem menuDockerRestart;
+        public System.Windows.Forms.ToolStripMenuItem menuDockerStop;
+        public System.Windows.Forms.ToolStripMenuItem menuDockerStart;
+        public System.Windows.Forms.ToolStripMenuItem menuPiNode;
+        public System.Windows.Forms.ToolStripMenuItem menuPiShow;
+        public System.Windows.Forms.ToolStripMenuItem menuPiMinimize;
+        public System.Windows.Forms.ToolStripMenuItem menuPiStart;
+        public System.Windows.Forms.ToolStripMenuItem menuPiRestart;
+        public System.Windows.Forms.ToolStripMenuItem menuPiStop;
+        public System.Windows.Forms.ToolStripMenuItem menuTools;
+        public System.Windows.Forms.ToolStripMenuItem menuDiagnostics;
+        public System.Windows.Forms.ToolStripMenuItem menuCompact;
     }
 }
