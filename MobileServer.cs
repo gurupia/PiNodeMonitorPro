@@ -11,6 +11,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Windows.Forms;
 using System.Diagnostics;
+using PiNodeMonitorWinForm.Services.Security;
+using PiNodeMonitorWinForm.Services.Logging;
 
 namespace PiNodeMonitorWinForm
 {
@@ -20,7 +22,7 @@ namespace PiNodeMonitorWinForm
         static extern bool SetCursorPos(int X, int Y);
         [DllImport("user32.dll")]
         static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
-        
+
         private const int MOUSEEVENTF_LEFTDOWN = 0x02;
         private const int MOUSEEVENTF_LEFTUP = 0x04;
 
@@ -29,10 +31,13 @@ namespace PiNodeMonitorWinForm
         private static int _screenReqCount = 0;
         private static DateTime _serverStartTime;
 
+        // v2.0 보안 강화: 새로운 인증 서비스
+        private static AuthenticationService _authService = new AuthenticationService();
+
         public static string CurrentIpAddress { get; private set; } = "127.0.0.1";
         public static string PublicIpAddress { get; private set; } = "Unknown";
         public static int Port { get; private set; } = 5000;
-        public static string CurrentPin { get; private set; } = "0000";
+        public static string CurrentPin => _authService.CurrentPin; // v2.0: AuthService에서 PIN 제공
         public static string LastCaptureMode { get; private set; } = "Ready";
         public static string TunnelUrl { get; private set; } = null;
 
@@ -54,74 +59,42 @@ namespace PiNodeMonitorWinForm
         public static NodeStatusData CurrentStatus { get; set; } = new NodeStatusData();
 
         public static string LogDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-        private static string _currentLogPath;
-        private static readonly object _logLock = new object();
-        private const int MaxLogSizeMB = 10;
-        private const int LogRetentionDays = 7;
 
+        /// <summary>
+        /// v2.0: 비동기 로깅 (UI 프리징 방지)
+        /// </summary>
         public static void Log(string message)
         {
-            string logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+            // 이벤트 구독자에게 즉시 알림 (UI 업데이트용)
             RequestLogged?.Invoke(message);
-            
-            try 
-            {
-                lock (_logLock)
-                {
-                    EnsureLogDirectory();
-                    string logPath = GetCurrentLogPath();
-                    File.AppendAllText(logPath, logLine + Environment.NewLine);
-                }
-            }
-            catch { }
-        }
 
-        private static void EnsureLogDirectory()
-        {
-            if (!Directory.Exists(LogDir))
-            {
-                Directory.CreateDirectory(LogDir);
-                CleanOldLogs();
-            }
-        }
-
-        private static string GetCurrentLogPath()
-        {
-            string dateStr = DateTime.Now.ToString("yyyy-MM-dd");
-            string basePath = Path.Combine(LogDir, $"mobile_{dateStr}.log");
-            
-            // Check file size, rotate if needed
-            if (File.Exists(basePath))
-            {
-                var info = new FileInfo(basePath);
-                if (info.Length > MaxLogSizeMB * 1024 * 1024)
-                {
-                    string rotatedPath = Path.Combine(LogDir, $"mobile_{dateStr}_{DateTime.Now:HHmmss}.log");
-                    File.Move(basePath, rotatedPath);
-                }
-            }
-            return basePath;
-        }
-
-        private static void CleanOldLogs()
-        {
-            try
-            {
-                var cutoff = DateTime.Now.AddDays(-LogRetentionDays);
-                foreach (var file in Directory.GetFiles(LogDir, "mobile_*.log"))
-                {
-                    if (File.GetCreationTime(file) < cutoff)
-                        File.Delete(file);
-                }
-            }
-            catch { }
+            // AsyncLogger를 통한 비동기 파일 쓰기
+            AsyncLogger.Instance.Info(message, "MobileServer");
         }
 
 
+        /// <summary>
+        /// v2.0: 새로운 6자리 영숫자 PIN 생성
+        /// </summary>
         public static void RegeneratePin()
         {
-            CurrentPin = new Random().Next(1000, 9999).ToString();
-            Log($"PIN Regenerated: {CurrentPin}");
+            string newPin = _authService.RegeneratePin();
+            Log($"[Security] PIN Regenerated: {newPin} (6-char alphanumeric)");
+        }
+
+        /// <summary>
+        /// v2.0: Rate Limiting이 적용된 PIN 검증
+        /// </summary>
+        private static AuthResult ValidatePin(string providedPin, string clientIp)
+        {
+            var result = _authService.Authenticate(providedPin, clientIp);
+
+            if (!result.Success)
+            {
+                Log($"[Security] Auth failed from {clientIp}: {result.Message}");
+            }
+
+            return result;
         }
 
         public static async Task StartServerAsync()
@@ -135,9 +108,9 @@ namespace PiNodeMonitorWinForm
                 try { NativeCapture.Engine_Initialize(); } catch { }
 
                 CurrentIpAddress = GetLocalIpAddress();
-                _ = Task.Run(() => DetectPublicIpAsync()); 
+                _ = Task.Run(() => DetectPublicIpAsync());
                 _ = Task.Run(() => NodeUtility.DetectContainerNameAsync());
-                CurrentPin = new Random().Next(1000, 9999).ToString(); 
+                RegeneratePin(); // v2.0: 6자리 영숫자 PIN 사용 
 
                 _listener = new HttpListener();
                 
@@ -294,9 +267,11 @@ namespace PiNodeMonitorWinForm
                 else if (path == "/api/status")
                 {
                     string pin = req.QueryString["pin"];
-                    if (pin != CurrentPin) { 
-                        Log($"[{clientIp}] Unauthorized Status Request (PIN: {pin})");
-                        res.StatusCode = 401; res.Close(); return; 
+                    var authResult = ValidatePin(pin, clientIp);
+                    if (!authResult.Success)
+                    {
+                        SendAuthErrorResponse(res, authResult);
+                        return;
                     }
 
                     // Original: var status = CurrentStatus;
@@ -333,9 +308,11 @@ namespace PiNodeMonitorWinForm
                 else if (path == "/api/screen")
                 {
                     string pin = req.QueryString["pin"];
-                    if (pin != CurrentPin) { 
-                        RequestLogged?.Invoke($"[{clientIp}] Unauthorized Screen Request (PIN: {pin})");
-                        res.StatusCode = 401; res.Close(); return; 
+                    var authResult = ValidatePin(pin, clientIp);
+                    if (!authResult.Success)
+                    {
+                        SendAuthErrorResponse(res, authResult);
+                        return;
                     }
 
                     byte[] imgData = null;
@@ -400,7 +377,8 @@ namespace PiNodeMonitorWinForm
                 else if (path.StartsWith("/api/mouse/"))
                 {
                     string pin = req.QueryString["pin"];
-                    if (pin != CurrentPin) { res.StatusCode = 401; res.Close(); return; }
+                    var authResult = ValidatePin(pin, clientIp);
+                    if (!authResult.Success) { SendAuthErrorResponse(res, authResult); return; }
 
                     int x = int.Parse(req.QueryString["x"]);
                     int y = int.Parse(req.QueryString["y"]);
@@ -425,7 +403,8 @@ namespace PiNodeMonitorWinForm
                 else if (path == "/api/control/action")
                 {
                     string pin = req.QueryString["pin"];
-                    if (pin != CurrentPin) { res.StatusCode = 401; res.Close(); return; }
+                    var authResult = ValidatePin(pin, clientIp);
+                    if (!authResult.Success) { SendAuthErrorResponse(res, authResult); return; }
 
                     string act = req.QueryString["type"];
                     Log($"[ACTION] Requested: {act}");
@@ -482,7 +461,7 @@ namespace PiNodeMonitorWinForm
 
         private static void SendResponse(HttpListenerResponse res, string content, string contentType)
         {
-            try 
+            try
             {
                 byte[] buf = Encoding.UTF8.GetBytes(content);
                 res.AddHeader("Access-Control-Allow-Origin", "*");
@@ -493,6 +472,42 @@ namespace PiNodeMonitorWinForm
                 res.Close();
             }
             catch { }
+        }
+
+        /// <summary>
+        /// v2.0: 인증 오류 응답 전송 (Rate Limiting 정보 포함)
+        /// </summary>
+        private static void SendAuthErrorResponse(HttpListenerResponse res, AuthResult authResult)
+        {
+            try
+            {
+                int statusCode = authResult.ErrorCode == AuthErrorCode.LockedOut ? 429 : 401;
+                var errorResponse = new JObject
+                {
+                    ["success"] = false,
+                    ["error"] = authResult.ErrorCode.ToString(),
+                    ["message"] = authResult.Message,
+                    ["remainingAttempts"] = authResult.RemainingAttempts,
+                    ["lockoutSeconds"] = (int)authResult.RemainingLockoutTime.TotalSeconds
+                };
+
+                byte[] buf = Encoding.UTF8.GetBytes(errorResponse.ToString());
+                res.StatusCode = statusCode;
+                res.AddHeader("Access-Control-Allow-Origin", "*");
+                res.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
+                // Rate Limiting 헤더 추가
+                if (authResult.ErrorCode == AuthErrorCode.LockedOut)
+                {
+                    res.AddHeader("Retry-After", ((int)authResult.RemainingLockoutTime.TotalSeconds).ToString());
+                }
+
+                res.ContentType = "application/json";
+                res.ContentLength64 = buf.Length;
+                res.OutputStream.Write(buf, 0, buf.Length);
+                res.Close();
+            }
+            catch { try { res.StatusCode = 401; res.Close(); } catch { } }
         }
 
         private static string GetLocalIpAddress()
