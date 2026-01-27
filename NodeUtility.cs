@@ -196,16 +196,21 @@ namespace PiNodeMonitorWinForm
             }
         }
         
-        // [신규] Netstat을 이용한 인커밍/아웃고잉 연결수 정밀 분석
+        // [신규] Netstat/ss를 이용한 인커밍/아웃고잉 연결수 정밀 분석 (Address Position 기반)
         public static async Task<(int Incoming, int Outgoing)> GetContainerPeerCountsAsync(string containerName)
         {
             if (string.IsNullOrEmpty(containerName)) return (0, 0);
             
-            // Try netstat first, fallback to ss if needed
-            string output = await RunDockerCommandAsync($"exec {containerName} netstat -an");
-            if (string.IsNullOrEmpty(output)) output = await RunDockerCommandAsync($"exec {containerName} ss -ant");
+            // Try ss first (faster/modern), then netstat
+            string output = await RunDockerCommandAsync($"exec {containerName} ss -ant");
             
-            if (string.IsNullOrEmpty(output)) return (0, 0);
+            // "executable file not found" 등의 에러가 발생하면 비어있거나 에러 메시지가 포함될 수 있음
+            if (string.IsNullOrEmpty(output) || output.Contains("not found") || !output.Contains("ESTAB")) 
+            {
+                output = await RunDockerCommandAsync($"exec {containerName} netstat -an");
+            }
+            
+            if (string.IsNullOrEmpty(output) || output.Contains("not found")) return (0, 0);
 
             int incoming = 0;
             int outgoing = 0;
@@ -213,19 +218,34 @@ namespace PiNodeMonitorWinForm
             var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
-                if ((line.Contains("ESTABLISHED") || line.Contains("ESTAB")) && (line.Contains(":31400") || line.Contains(".31400")))
+                if (!line.ToUpper().Contains("ESTAB")) continue;
+                if (!line.Contains("31400")) continue;
+
+                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                
+                // IP/주소 형식을 포함하는 컬럼들만 추출 (보통 Local Address가 1번, Remote Address가 2번)
+                System.Collections.Generic.List<int> addrIndices = new System.Collections.Generic.List<int>();
+                for (int i = 0; i < parts.Length; i++)
                 {
-                    var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 5)
+                    if (parts[i].Contains(".") || parts[i].Contains(":"))
                     {
-                        // Linux netstat: [0]proto [1]recv-q [2]send-q [3]local-address [4]remote-address [5]state
-                        // Local address is index 3, Remote is index 4
-                        string local = parts[3];
-                        string remote = parts[4];
-                        
-                        if (local.EndsWith(":31400") || local.EndsWith(".31400")) incoming++;
-                        else if (remote.EndsWith(":31400") || remote.EndsWith(".31400")) outgoing++;
+                        addrIndices.Add(i);
                     }
+                }
+
+                // 최소 2개의 주소 컬럼(로컬, 리모트)이 발견되어야 함
+                if (addrIndices.Count >= 2)
+                {
+                    int localIdx = addrIndices[0];
+                    int remoteIdx = addrIndices[1];
+                    
+                    bool localIsPi = parts[localIdx].EndsWith(":31400") || parts[localIdx].EndsWith(".31400");
+                    bool remoteIsPi = parts[remoteIdx].EndsWith(":31400") || parts[remoteIdx].EndsWith(".31400");
+
+                    // 1. 내 지갑 주소(로컬)가 31400이면 -> 밖에서 들어온 것 (Incoming)
+                    if (localIsPi) incoming++;
+                    // 2. 상대방 주소(리모트)가 31400이면 -> 내가 나간 것 (Outgoing)
+                    else if (remoteIsPi) outgoing++;
                 }
             }
             return (incoming, outgoing);
