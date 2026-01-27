@@ -185,6 +185,7 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
             
             // Tier 1: Local Host 31401 (Pi API)
             dataFetched = await TryUpdateFromUrlAsync("http://localhost:31401/node/info", isStellarInfo: false);
+            if (!dataFetched) dataFetched = await TryUpdateFromUrlAsync("http://127.0.0.1:31401/node/info", isStellarInfo: false);
             
             // Tier 2: Docker Exec 31401 (Pi API)
             if (!dataFetched && !string.IsNullOrEmpty(_currentMetrics.ActiveContainerName)) {
@@ -199,6 +200,20 @@ namespace PiNodeMonitorWinForm.Core.MVP.Presenters
                     string sJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} wget -qO- http://localhost:11626/info");
                     if (string.IsNullOrEmpty(sJson)) sJson = await NodeUtility.RunDockerCommandAsync($"exec {_currentMetrics.ActiveContainerName} curl -s http://localhost:11626/info");
                     dataFetched = ParseNodeInfoJson(sJson, isStellarInfo: true);
+                }
+            }
+
+            // [Fix] 정합성 보정: API 수준에서 인커밍/아웃고잉 구분이 안 될 경우 (Stellar Failover 등)
+            // netstat을 통해 컨테이너의 31400 포트 연결 상태를 정밀 분석하여 보정합니다. (공식 앱과 일치화)
+            if (dataFetched && (_currentMetrics.IncomingConnections == "0" || string.IsNullOrEmpty(_currentMetrics.IncomingConnections)) 
+                && !string.IsNullOrEmpty(_currentMetrics.ActiveContainerName))
+            {
+                var (inc, outg) = await NodeUtility.GetContainerPeerCountsAsync(_currentMetrics.ActiveContainerName);
+                if (inc > 0 || outg > 0)
+                {
+                    _currentMetrics.IncomingConnections = inc.ToString();
+                    _currentMetrics.OutgoingConnections = outg.ToString();
+                    _currentMetrics.IsSupporting = inc > 0 ? "Yes" : "No";
                 }
             }
 

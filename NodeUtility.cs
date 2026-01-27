@@ -195,6 +195,41 @@ namespace PiNodeMonitorWinForm
                 else CurrentContainerName = o.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
             }
         }
+        
+        // [신규] Netstat을 이용한 인커밍/아웃고잉 연결수 정밀 분석
+        public static async Task<(int Incoming, int Outgoing)> GetContainerPeerCountsAsync(string containerName)
+        {
+            if (string.IsNullOrEmpty(containerName)) return (0, 0);
+            
+            // Try netstat first, fallback to ss if needed
+            string output = await RunDockerCommandAsync($"exec {containerName} netstat -an");
+            if (string.IsNullOrEmpty(output)) output = await RunDockerCommandAsync($"exec {containerName} ss -ant");
+            
+            if (string.IsNullOrEmpty(output)) return (0, 0);
+
+            int incoming = 0;
+            int outgoing = 0;
+
+            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                if ((line.Contains("ESTABLISHED") || line.Contains("ESTAB")) && (line.Contains(":31400") || line.Contains(".31400")))
+                {
+                    var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 5)
+                    {
+                        // Linux netstat: [0]proto [1]recv-q [2]send-q [3]local-address [4]remote-address [5]state
+                        // Local address is index 3, Remote is index 4
+                        string local = parts[3];
+                        string remote = parts[4];
+                        
+                        if (local.EndsWith(":31400") || local.EndsWith(".31400")) incoming++;
+                        else if (remote.EndsWith(":31400") || remote.EndsWith(".31400")) outgoing++;
+                    }
+                }
+            }
+            return (incoming, outgoing);
+        }
 
         public static async Task RunCommandAsync(string file, string args, bool admin = false) {
             var psi = new ProcessStartInfo(file, args) { UseShellExecute = true, CreateNoWindow = true };
