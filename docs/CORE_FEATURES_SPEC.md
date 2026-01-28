@@ -175,3 +175,13 @@ private async void OnTimerTick(object sender, EventArgs e)
 | 버전 | 날짜 | 변경 내용 |
 |:---|:---|:---|
 | 1.0 | 2026-01-28 | 초기 명세 작성 |
+
+---
+
+## 프로젝트 버전 호환성
+
+| 프로젝트 버전 | 본 문서 적용 |
+|:---|:---|
+| v1.8.26 | ⚠️ 일부 보안 기능 미구현 |
+| **v2.0.0** | ✅ DPAPI, Rate-Limited Auth 등 모든 보안 기능 포함 |
+
