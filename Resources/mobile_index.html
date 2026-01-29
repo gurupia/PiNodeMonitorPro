@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <title>Pi Node Mobile Control</title>
+    <style>
+        :root {
+            --bg-deep: #0a0e14;
+            --bg-card: rgba(22, 27, 34, 0.85);
+            --bg-glass: rgba(30, 40, 55, 0.6);
+            --border-glow: rgba(242, 169, 0, 0.3);
+            --accent-gold: #f2a900;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, var(--bg-deep) 0%, #101820 50%, #0a1628 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        #header {
+            height: 60px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border-glow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        /* --- Dual Mode Layout System --- */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Base */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: rgba(15, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(242, 169, 0, 0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #app-container.sidebar-open #sidebar {
+            transform: translateX(280px);
+        }
+
+        #sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+            z-index: 1500;
+        }
+
+        #app-container.sidebar-open #sidebar-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Sidebar Elements */
+        .sidebar-header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .menu-item i {
+            margin-right: 15px;
+            font-style: normal;
+            font-size: 1.2rem;
+        }
+
+        .menu-item.active {
+            background: rgba(242, 169, 0, 0.15);
+            color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        .menu-item:active {
+            transform: scale(0.98);
+        }
+
+        .sidebar-footer {
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mode Specific Styles */
+        .ui-pro #home-tab .card {
+            display: none;
+        }
+
+        .ui-pro #home-tab .card.active-view {
+            display: block;
+        }
+
+        /* Mode Specific Navigation Behavior */
+        .ui-pro #tabs {
+            display: none !important;
+        }
+
+        .ui-pro #app-container {
+            padding-bottom: 0 !important;
+        }
+
+        .ui-classic #tabs {
+            display: flex;
+        }
+
+        #fleet-tab {
+            display: none;
+        }
+
+        .node-card {
+            background: var(--bg-glass);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .node-card.offline {
+            opacity: 0.6;
+            border-color: #da3633;
+        }
+
+        .node-card.active {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 15px rgba(242, 169, 0, 0.2);
+        }
+
+        .node-info {
+            flex: 1;
+        }
+
+        .node-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .dot-online {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .dot-offline {
+            background: #da3633;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: var(--accent-gold);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 10px;
+            margin-left: -10px;
+        }
+
+        .logo {
+            color: var(--accent-gold);
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            text-shadow: 0 0 10px rgba(242, 169, 0, 0.5);
+        }
+
+        .logo span {
+            background: linear-gradient(135deg, var(--accent-gold), #ffcc00);
+            color: #000;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-right: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(242, 169, 0, 0.4);
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 100px;
+        }
+
+        .card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .status-item {
+            padding: 15px;
+            background: rgba(13, 17, 23, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.2s;
+        }
+
+        .status-item:hover {
+            background: rgba(20, 25, 35, 0.8);
+            border-color: var(--border-glow);
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+        }
+
+        .status-value.success {
+            color: var(--accent-green);
+            text-shadow: 0 0 10px rgba(63, 185, 80, 0.4);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(255, 255, 255, 0.1), transparent);
+            pointer-events: none;
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(35, 134, 54, 0.4);
+        }
+
+        .action-btn.primary:hover {
+            box-shadow: 0 6px 20px rgba(35, 134, 54, 0.5);
+        }
+
+        .action-btn.secondary {
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        .action-btn.secondary:hover {
+            border-color: var(--border-glow);
+            background: rgba(40, 50, 65, 0.7);
+        }
+
+        .action-btn.danger {
+            background: linear-gradient(135deg, #da3633 0%, #f85149 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(218, 54, 51, 0.4);
+        }
+
+        .action-btn i {
+            margin-right: 10px;
+            font-style: normal;
+            font-size: 1.1rem;
+        }
+
+        #remote-view {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            cursor: pointer;
+            border: 2px solid #30363d;
+            margin-top: 10px;
+        }
+
+        #pin-overlay {
+            position: fixed;
+            inset: 0;
+            background: #0d1117;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #pin-input {
+            background: #161b22;
+            border: 1px solid #30363d;
+            color: #fff;
+            padding: 20px;
+            font-size: 2rem;
+            width: 160px;
+            text-align: center;
+            border-radius: 12px;
+            letter-spacing: 8px;
+            margin-bottom: 30px;
+        }
+
+        #tabs {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 70px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            z-index: 1000;
+        }
+
+        .tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent-gold);
+        }
+
+        .tab.active .tab-icon {
+            text-shadow: 0 0 12px rgba(242, 169, 0, 0.6);
+            transform: scale(1.1);
+        }
+
+        .tab-icon {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+            transition: transform 0.2s;
+        }
+
+        #remote-full-ui {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1500;
+            display: none;
+            flex-direction: column;
+        }
+
+        #remote-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        #debug-console {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 5px;
+            pointer-events: none;
+            z-index: 300;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div id='pin-overlay' style='display:none;'>
+        <div class='logo' style='margin-bottom:40px; font-size:1.5rem;'><span>PI</span> Sentinel</div>
+        <input type='password' id='pin-input' maxlength='4' placeholder='0000' inputmode='numeric'>
+        <button class='action-btn primary' style='width:160px;' onclick='verifyPin()'>UNLOCK</button>
+    </div>
+
+    <div id='app-container' class='ui-classic'>
+        <div id='sidebar-overlay' onclick='toggleSidebar()'></div>
+        <div id='sidebar'>
+            <div class='sidebar-header'>
+                <div style='color:var(--accent-gold); font-weight:bold; font-size:1.1rem;'>Pi Node <span
+                        style='color:var(--text-primary)'>Pro</span></div>
+                <div style='font-size:0.75rem; color:var(--text-secondary);' id='sidebar-node-info'>-- | --</div>
+            </div>
+            <div class='sidebar-menu'>
+                <div class='menu-item active' id='menu-dashboard' onclick='showView("dashboard")'><i>📊</i> Dashboard
+                </div>
+                <div class='menu-item' id='menu-remote' onclick='showView("remote")'><i>🖥️</i> Remote Control</div>
+                <div class='menu-item' id='menu-fleet' onclick='showView("fleet")'><i>🚢</i> Fleet View</div>
+                <div class='menu-item' id='menu-macros' onclick='showView("macros")'><i>⚡</i> Quick Macros</div>
+                <div class='menu-item' id='menu-settings' onclick='showView("settings")'><i>⚙️</i> Settings</div>
+            </div>
+            <div class='sidebar-footer'>
+                <button class='action-btn secondary' style='width:100%; margin-bottom:10px;' onclick='toggleUIMode()'>
+                    <span id='mode-btn-text'>Switch to PRO Mode</span>
+                </button>
+            </div>
+        </div>
+
+        <div id='header'>
+            <button class='menu-toggle' onclick='toggleSidebar()'>☰</button>
+            <div class='logo' style='margin-left:10px;'><span>PI</span> Sentinel</div>
+            <div style='margin-left:auto; display:flex; gap:10px; align-items:center;'>
+                <div style='font-size:0.8rem; background:#30363d; padding:4px 10px; border-radius:20px;'
+                    id='pin-display'>PIN: --</div>
+                <button onclick='logout()'
+                    style='background:#da3633; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:0.7rem;'>RESET</button>
+            </div>
+        </div>
+
+        <div class='container' id='home-tab'>
+            <div class='card'>
+                <div class='card-title'>NODE STATUS</div>
+                <div class='status-grid'>
+                    <div class='status-item'>
+                        <div class='status-label'>State</div>
+                        <div class='status-value' id='val-state'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Block Height</div>
+                        <div class='status-value' id='val-block'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Availability</div>
+                        <div class='status-value' style='color:#f2a900' id='val-avail'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Node Bonus</div>
+                        <div class='status-value' style='color:#f2a900' id='val-bonus'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Last Sync</div>
+                        <div class='status-value' id='val-sync'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Public IP</div>
+                        <div class='status-value' id='val-ip' style='font-size:0.9rem'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Pi Balance</div>
+                        <div class='status-value' style='color:#f2a900' id='val-balance'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>Pi Price (IOU)</div>
+                        <div class='status-value' style='color:#2196f3; font-size:0.8rem;' id='val-price'>---</div>
+                    </div>
+                    <div class='status-item' style='grid-column: span 2;'>
+                        <div class='status-label'>Total Market Value</div>
+                        <div class='status-value' style='color:#4caf50' id='val-total-value'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>CPU Usage</div>
+                        <div class='status-value' id='val-cpu'>---</div>
+                    </div>
+                    <div class='status-item'>
+                        <div class='status-label'>RAM Usage</div>
+                        <div class='status-value' id='val-ram'>---</div>
+                    </div>
+                    <div class='status-item' style='grid-column: span 2;'>
+                        <div class='status-label'>Connections (In/Out)</div>
+                        <div class='status-value' id='val-conn'>---</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class='card'>
+                <div class='card-title'>PORT CONNECTIVITY (31401-31403)</div>
+                <div style='display:flex; justify-content:space-between; gap:10px;'>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31401</div>
+                        <div class='status-value' id='port-31401' style='font-size:1rem;'>---</div>
+                    </div>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31402</div>
+                        <div class='status-value' id='port-31402' style='font-size:1rem;'>---</div>
+                    </div>
+                    <div class='status-item' style='flex:1; text-align:center;'>
+                        <div class='status-label'>31403</div>
+                        <div class='status-value' id='port-31403' style='font-size:1rem;'>---</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class='card'>
+                <div class='card-title'>SYSTEM ENVIRONMENT</div>
+                <div style='font-size:0.85rem; color:var(--text-secondary); line-height:1.6;'>
+                    <div>Desktop Version: <span id='env-version'
+                            style='color:var(--accent-blue); font-weight:bold;'>---</span></div>
+                    <div>Operating System: <span id='env-os' style='color:var(--text-primary);'>---</span></div>
+                    <div style='margin-top:5px;'>Uptime: <span id='val-uptime'
+                            style='color:var(--text-primary);'>---</span></div>
+                </div>
+            </div>
+
+            <div class='card'>
+                <div class='card-title'>QUICK ACTIONS</div>
+                <button class='action-btn primary' onclick='runAction("restart_container")'><i>🔄</i> Restart Pi
+                    Container</button>
+                <button class='action-btn secondary' onclick='runAction("restart_docker")'><i>🐋</i> Restart Docker
+                    Desktop</button>
+                <button class='action-btn secondary' onclick='runAction("restart_pi")'><i>🥧</i> Restart Pi App</button>
+            </div>
+
+            <div style='text-align:center; padding:10px; opacity:0.5; font-size:0.7rem; letter-spacing:1px;'>
+                PI NODE ULTIMATE MONITOR v0.5.4
+            </div>
+        </div>
+
+        <div id='remote-full-ui'>
+            <div style='height:50px; background:#161b22; display:flex; align-items:center; padding:0 15px;'>
+                <button onclick='switchTab("home")'
+                    style='background:none; border:1px solid #30363d; color:#fff; padding:5px 12px; border-radius:6px;'>&larr;
+                    Back</button>
+                <span style='margin-left:15px; font-size:0.9rem; font-weight:bold;'>Remote Control</span>
+            </div>
+            <div
+                style='flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;'>
+                <div id='debug-console'>Debug Console Ready...</div>
+                <div id='remote-loading' style='display:none;'>Loading Stream...</div>
+                <img id='screen-img' draggable='false'
+                    style='width:100%; height:100%; object-fit:contain; background:#111;'>
+                <div id='shield' style='position:absolute; inset:0; z-index:100;'></div>
+            </div>
+            <div id='status-bar'
+                style='height:30px; background:#161b22; font-size:0.7rem; display:flex; align-items:center; padding:0 15px;'>
+                ---</div>
+        </div>
+
+
+
+        <div id='fleet-tab' class='container' style='display:none;'>
+            <div class='card' style='margin-bottom:15px; background: rgba(255,193,7,0.05);'>
+                <div class='card-title'>🚢 NODE FLEET ( 함대 제어 )</div>
+                <div id='fleet-list'>
+                    <!-- Fleet nodes injected here -->
+                </div>
+                <button class='action-btn primary' onclick='openAddNodeModal()' style='margin-top:15px; width:100%;'>
+                    <i>➕</i> 새 노드(터널) 등록하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Node Modal -->
+        <div id='node-modal' class='overlay'
+            style='display:none; justify-content:center; align-items:center; z-index:2000;'>
+            <div class='card' style='width:90%; max-width:400px; animation: slideUp 0.3s ease;'>
+                <div class='card-title'>새 노드 등록</div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>노드 별칭 (예: 거실컴, 노트북)</label>
+                    <input type='text' id='node-alias' placeholder='Alias'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>터널 URL (Cloudflare URL)</label>
+                    <input type='text' id='node-url' placeholder='https://xxx.trycloudflare.com'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='margin-bottom:15px;'>
+                    <label style='display:block; margin-bottom:5px; font-size:0.9em;'>접속 PIN (기본: 0000)</label>
+                    <input type='number' id='node-pin' placeholder='0000' value='0000'
+                        style='width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px;'>
+                </div>
+                <div style='display:flex; gap:10px;'>
+                    <button class='action-btn secondary' style='flex:1;' onclick='closeAddNodeModal()'>취소</button>
+                    <button class='action-btn primary' style='flex:1;' onclick='saveNewNode()'>등록</button>
+                </div>
+            </div>
+        </div>
+
+        <div id='tabs'>
+            <div class='tab active' id='tab-home' onclick='switchTab("home")'>
+                <div class='tab-icon'>🏠</div>
+                <div>Dashboard</div>
+            </div>
+            <div class='tab' id='tab-remote' onclick='switchTab("remote")'>
+                <div class='tab-icon'>📺</div>
+                <div>Remote</div>
+            </div>
+            <div class='tab' id='tab-fleet' onclick='switchTab("fleet")'>
+                <div class='tab-icon'>🚢</div>
+                <div>Fleet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LOG_LIMIT = 5;
+        let lastLogs = [];
+        function remoteLog(msg) {
+            console.log(msg);
+            lastLogs.push('[' + new Date().toLocaleTimeString() + '] ' + msg);
+            if (lastLogs.length > LOG_LIMIT) lastLogs.shift();
+            const debugPanel = document.getElementById('debug-console');
+            if (debugPanel) debugPanel.innerHTML = lastLogs.join('<br>');
+            fetch('/api/debug', { method: 'POST', body: msg }).catch(() => { });
+        }
+
+        let userPin = new URLSearchParams(window.location.search).get('pin') || localStorage.getItem('sentinel_pin') || '';
+        let isRemoteActive = false;
+        let isLoopRunning = false;
+        let svrW = 1920, svrH = 1080;
+
+        let fleetNodes = JSON.parse(localStorage.getItem('sentinel_fleet')) || [
+            { alias: 'Main Node (Current)', url: '', pin: userPin || '0000', active: true }
+        ];
+        // Migration for old data (v1.4.2 -> v1.4.3)
+        fleetNodes.forEach(n => { if (!n.pin) n.pin = '0000'; });
+
+        let currentNodeUrl = ''; // Default is current server
+
+        function startSession() {
+            applyUIMode(); // Initialize UI Mode
+            loadNodes();   // Load fleet
+            remoteLog('Script initialized. PIN: ' + userPin);
+            document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
+            updateStatus();
+            loadNextThumb();
+            updatePriceFromJS();
+            setInterval(updateStatus, 5000);
+            setInterval(loadNextThumb, 3000);
+            setInterval(updatePriceFromJS, 600000); // 10 min interval
+            setInterval(checkNodesHealth, 15000);   // Fleet health check
+            remoteLog('Session started. PIN in use. Mode: ' + uiMode);
+        }
+
+        function verifyPin() {
+            const input = document.getElementById('pin-input').value;
+            if (input.length === 4) {
+                userPin = input;
+                localStorage.setItem('sentinel_pin', input);
+                location.reload();
+            }
+        }
+
+        function switchTab(t) {
+            haptic(8);
+            const isRemote = t === 'remote';
+            const isFleet = t === 'fleet';
+
+            document.getElementById('home-tab').style.display = (isRemote || isFleet) ? 'none' : 'block';
+            document.getElementById('remote-full-ui').style.display = isRemote ? 'flex' : 'none';
+            document.getElementById('fleet-tab').style.display = isFleet ? 'block' : 'none';
+
+            document.getElementById('tab-home').className = (t === 'home') ? 'tab active' : 'tab';
+            document.getElementById('tab-remote').className = (t === 'remote') ? 'tab active' : 'tab';
+            document.getElementById('tab-fleet').className = (t === 'fleet') ? 'tab active' : 'tab';
+
+            isRemoteActive = isRemote;
+            if (isRemote) {
+                remoteLog('Switched to REMOTE.');
+                loadNextImage();
+            } else if (isFleet) {
+                renderFleetList();
+            }
+        }
+
+        function haptic(ms = 10) {
+            if (navigator.vibrate) navigator.vibrate(ms);
+        }
+
+        function runAction(type) {
+            haptic(15);
+            if (!confirm('Action: ' + type + '\n실행하시겠습니까?')) return;
+            fetch('/api/control/action?pin=' + userPin + '&type=' + type)
+                .then(r => {
+                    if (r.status === 401) { logout(); return; }
+                    return r.text();
+                })
+                .then(t => { if (t) { haptic(30); alert('Success: ' + t); } })
+                .catch(e => alert('Error: ' + e.message));
+        }
+
+        let lastPriceFetch = 0;
+        function updatePriceFromJS() {
+            const now = Date.now();
+            if (now - lastPriceFetch < 600000) return; // 10 min cache
+
+            fetch('https://api.coingecko.com/api/v3/simple/price?ids=pi-network-iou&vs_currencies=usd,krw')
+                .then(r => r.json())
+                .then(json => {
+                    const data = json['pi-network-iou'];
+                    if (data) {
+                        lastPriceFetch = now;
+                        // Send back to C# Server
+                        fetch('/api/update_price?pin=' + userPin, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ usd: data.usd, krw: data.krw })
+                        }).catch(() => { });
+                    }
+                }).catch(() => { });
+        }
+
+        let uiMode = localStorage.getItem('sentinel_ui_mode') || 'classic';
+
+        function toggleSidebar() {
+            haptic(5);
+            document.getElementById('app-container').classList.toggle('sidebar-open');
+        }
+
+        function toggleUIMode() {
+            haptic(15);
+            uiMode = (uiMode === 'classic') ? 'pro' : 'classic';
+            localStorage.setItem('sentinel_ui_mode', uiMode);
+            applyUIMode();
+            toggleSidebar();
+        }
+
+        function applyUIMode() {
+            const container = document.getElementById('app-container');
+            const btnText = document.getElementById('mode-btn-text');
+
+            if (uiMode === 'pro') {
+                container.classList.remove('ui-classic');
+                container.classList.add('ui-pro');
+                btnText.innerText = 'Switch to CLASSIC Mode';
+                showView('dashboard'); // Default to dashboard in Pro mode
+            } else {
+                container.classList.remove('ui-pro');
+                container.classList.add('ui-classic');
+                btnText.innerText = 'Switch to PRO Mode';
+                // Reset all cards to visible in Classic mode
+                const cards = document.querySelectorAll('#home-tab .card');
+                cards.forEach(c => c.classList.remove('active-view'));
+            }
+        }
+
+        function showView(viewId) {
+            haptic(8);
+            if (uiMode === 'pro') {
+                const cards = document.querySelectorAll('#home-tab .card');
+                cards.forEach(c => c.classList.remove('active-view'));
+
+                document.getElementById('home-tab').style.display = 'block';
+                document.getElementById('remote-full-ui').style.display = 'none';
+                document.getElementById('fleet-tab').style.display = 'none';
+
+                // Map views to cards
+                if (viewId === 'dashboard') {
+                    if (cards.length > 0) cards[0].classList.add('active-view');
+                    if (cards.length > 1) cards[1].classList.add('active-view');
+                    if (cards.length > 2) cards[2].classList.add('active-view');
+                } else if (viewId === 'remote') {
+                    document.getElementById('home-tab').style.display = 'none';
+                    document.getElementById('remote-full-ui').style.display = 'flex';
+                } else if (viewId === 'fleet') {
+                    document.getElementById('home-tab').style.display = 'none';
+                    document.getElementById('fleet-tab').style.display = 'block';
+                    renderFleetList();
+                } else if (viewId === 'settings') {
+                    document.querySelectorAll('#home-tab .card:nth-last-child(2), #home-tab .card:nth-last-child(1)').forEach(c => c.classList.add('active-view'));
+                }
+
+                // Update active menu
+                document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+                const menuEl = document.getElementById('menu-' + viewId);
+                if (menuEl) menuEl.classList.add('active');
+            } else {
+                switchTab(viewId === 'dashboard' ? 'home' : (viewId === 'remote' ? 'remote' : (viewId === 'fleet' ? 'fleet' : 'home')));
+            }
+            document.getElementById('app-container').classList.remove('sidebar-open');
+        }
+
+        // --- Fleet Management Functions ---
+        function loadNodes() {
+            renderFleetList();
+            checkNodesHealth();
+        }
+
+        function openAddNodeModal() {
+            haptic(5);
+            document.getElementById('node-modal').style.display = 'flex';
+        }
+
+        function closeAddNodeModal() {
+            document.getElementById('node-modal').style.display = 'none';
+        }
+
+        function saveNewNode() {
+            const alias = document.getElementById('node-alias').value.trim();
+            const url = document.getElementById('node-url').value.trim();
+            const pin = document.getElementById('node-pin').value.trim() || '0000';
+
+            if (!alias || !url) return alert('모든 항목을 입력해주세요.');
+
+            fleetNodes.push({ alias, url, pin, active: false });
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+
+            document.getElementById('node-alias').value = '';
+            document.getElementById('node-url').value = '';
+            document.getElementById('node-pin').value = '0000';
+
+            closeAddNodeModal();
+            renderFleetList();
+            haptic(20);
+        }
+
+        function switchNode(index) {
+            haptic(15);
+            fleetNodes.forEach((n, i) => n.active = (i === index));
+            currentNodeUrl = fleetNodes[index].url;
+            userPin = fleetNodes[index].pin || '0000'; // Update global auth pin
+
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+            localStorage.setItem('sentinel_pin', userPin); // Persist current session pin
+
+            remoteLog('Switching to Node: ' + fleetNodes[index].alias);
+            document.getElementById('pin-display').innerText = 'PIN: ' + userPin;
+
+            updateStatus();
+            renderFleetList();
+
+            if (uiMode === 'pro') showView('dashboard');
+            else switchTab('home');
+        }
+
+        function removeNode(index) {
+            if (index === 0) return alert('기본 노드는 삭제할 수 없습니다.');
+            if (!confirm('이 노드를 삭제하시겠습니까?')) return;
+            fleetNodes.splice(index, 1);
+            localStorage.setItem('sentinel_fleet', JSON.stringify(fleetNodes));
+            renderFleetList();
+        }
+
+        function renderFleetList() {
+            const list = document.getElementById('fleet-list');
+            if (!list) return;
+            list.innerHTML = '';
+            fleetNodes.forEach((node, i) => {
+                const card = document.createElement('div');
+                card.className = 'node-card' + (node.active ? ' active' : '');
+                card.onclick = () => switchNode(i);
+
+                card.innerHTML = `
+                    <div class='node-status-dot' id='dot-node-${i}'></div>
+                    <div class='node-info'>
+                        <div style='font-weight:bold; color:var(--accent-gold);'>${node.alias}</div>
+                        <div style='font-size:0.8em; color:#aaa; overflow:hidden; text-overflow:ellipsis;'>${node.url || 'Internal (Local)'}</div>
+                    </div>
+                    ${i > 0 ? `<div onclick='event.stopPropagation(); removeNode(${i});' style='color:#da3633; padding:10px;'>🗑️</div>` : ''}
+                `;
+                list.appendChild(card);
+            });
+            checkNodesHealth();
+        }
+
+        function checkNodesHealth() {
+            fleetNodes.forEach((node, i) => {
+                const targetPin = node.pin || '0000';
+                const target = node.url ? node.url + '/api/health?pin=' + targetPin : '/api/health?pin=' + targetPin;
+                fetch(target).then(r => {
+                    const dot = document.getElementById('dot-node-' + i);
+                    if (dot) dot.className = 'node-status-dot ' + (r.ok ? 'dot-online' : 'dot-offline');
+                }).catch(() => {
+                    const dot = document.getElementById('dot-node-' + i);
+                    if (dot) dot.className = 'node-status-dot dot-offline';
+                });
+            });
+        }
+
+
+        function updateStatus() {
+            if (!userPin) return;
+            const target = currentNodeUrl ? currentNodeUrl + '/api/status?pin=' + userPin : '/api/status?pin=' + userPin;
+            fetch(target)
+                .then(r => {
+                    if (r.status === 401) { logout(); throw new Error('401'); }
+                    return r.json();
+                })
+                .then(d => {
+                    svrW = d.screenWidth; svrH = d.screenHeight;
+                    document.getElementById('val-state').innerText = d.state;
+                    document.getElementById('val-conn').innerText = d.incoming + ' In / ' + d.outgoing + ' Out';
+                    if (document.getElementById('val-block')) document.getElementById('val-block').innerText = d.localBlock;
+                    if (document.getElementById('val-avail')) document.getElementById('val-avail').innerText = d.availability.toFixed(2) + '%';
+                    if (document.getElementById('val-bonus')) document.getElementById('val-bonus').innerText = d.nodeBonus.toFixed(4);
+                    if (document.getElementById('val-balance')) document.getElementById('val-balance').innerText = d.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' π';
+                    if (document.getElementById('val-price')) document.getElementById('val-price').innerText = '$' + d.piPriceUSD.toFixed(2) + ' / ' + d.piPriceKRW.toLocaleString() + '₩';
+                    if (document.getElementById('val-total-value')) document.getElementById('val-total-value').innerText = '$' + d.totalValueUSD.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' / ' + d.totalValueKRW.toLocaleString() + '₩';
+                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').innerText = d.cpu;
+                    if (document.getElementById('val-ram')) document.getElementById('val-ram').innerText = d.ram;
+                    if (document.getElementById('val-ip')) document.getElementById('val-ip').innerText = d.publicIp || 'Unknown';
+
+                    // Update Sidebar Info
+                    const sidebarInfo = document.getElementById('sidebar-node-info');
+                    if (sidebarInfo) {
+                        const status = d.state.includes('Synced') ? 'ONLINE' : 'SYNCING';
+                        sidebarInfo.innerText = (d.publicIp || 'Unknown') + ' | ' + status;
+                    }
+
+                    // Port Status
+                    const updatePort = (id, open) => {
+                        const el = document.getElementById('port-' + id);
+                        el.innerText = open ? 'OPEN' : 'CLOSED';
+                        el.style.color = open ? 'var(--accent-green)' : '#da3633';
+                    };
+                    updatePort('31401', d.p31401);
+                    updatePort('31402', d.p31402);
+                    updatePort('31403', d.p31403);
+
+                    if (document.getElementById('val-sync')) {
+                        const age = d.ledgerAge;
+                        const el = document.getElementById('val-sync');
+                        if (age < 0) el.innerText = 'OFFLINE';
+                        else if (age < 10) el.innerText = 'REALTIME';
+                        else el.innerText = age + 's AGO';
+                        el.className = age < 20 ? 'status-value success' : 'status-value';
+                    }
+                    if (document.getElementById('val-uptime')) document.getElementById('val-uptime').innerText = d.uptime;
+                    if (document.getElementById('env-version')) document.getElementById('env-version').innerText = d.desktopVersion;
+                    if (document.getElementById('env-os')) document.getElementById('env-os').innerText = d.osVersion;
+
+                    document.getElementById('status-bar').innerText = 'D:' + d.state + ' | S:' + svrW + 'x' + svrH + ' | P:' + userPin;
+
+                    const stateEl = document.getElementById('val-state');
+                    stateEl.className = d.state.includes('Synced') ? 'status-value success' : 'status-value';
+                }).catch(() => { });
+        }
+
+        function loadNextThumb() {
+            if (isRemoteActive || !userPin) return;
+            fetch('/api/screen?pin=' + userPin + '&t=' + Date.now())
+                .then(r => r.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const thumb = document.getElementById('remote-thumb');
+                    if (thumb) thumb.src = url;
+                }).catch(() => { });
+        }
+
+        function loadNextImage() {
+            if (!isRemoteActive || !userPin || isLoopRunning) return;
+            isLoopRunning = true;
+
+            const screenImg = document.getElementById('screen-img');
+            const loading = document.getElementById('remote-loading');
+
+            const innerLoop = () => {
+                if (!isRemoteActive || !userPin) { isLoopRunning = false; return; }
+
+                fetch('/api/screen?pin=' + userPin + '&t=' + Date.now())
+                    .then(r => {
+                        if (r.status === 401) { logout(); throw new Error('401'); }
+                        return r.blob();
+                    })
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        const oldUrl = screenImg.src;
+                        screenImg.src = url;
+                        if (oldUrl && oldUrl.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
+                        loading.style.display = 'none';
+                        setTimeout(innerLoop, 50);
+                    })
+                    .catch(e => {
+                        remoteLog('Stream Fetch Error: ' + e.message);
+                        loading.style.display = 'flex';
+                        setTimeout(innerLoop, 1000);
+                    });
+            };
+            innerLoop();
+        }
+
+        const shield = document.getElementById('shield');
+        function handleControl(e, act) {
+            if (!isRemoteActive || !userPin) return;
+            e.preventDefault();
+            const rect = shield.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX; clientY = e.clientY;
+            }
+            const x = Math.round(((clientX - rect.left) / rect.width) * svrW);
+            const y = Math.round(((clientY - rect.top) / rect.height) * svrH);
+            fetch('/api/mouse/' + act + '?pin=' + userPin + '&x=' + x + '&y=' + y).catch(() => { });
+        }
+
+        shield.addEventListener('mousedown', e => handleControl(e, 'down'));
+        shield.addEventListener('mouseup', e => handleControl(e, 'up'));
+        shield.addEventListener('mousemove', e => { if (e.buttons > 0) handleControl(e, 'move'); });
+        shield.addEventListener('touchstart', e => handleControl(e, 'down'));
+        shield.addEventListener('touchend', e => handleControl(e, 'up'));
+        shield.addEventListener('touchmove', e => handleControl(e, 'move'));
+
+        // --- Final Initialization ---
+        if (!userPin) {
+            document.getElementById('pin-overlay').style.display = 'flex';
+            document.getElementById('app-container').style.display = 'none';
+        } else {
+            document.getElementById('pin-overlay').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            startSession();
+        }
+    </script>
+</body>
+
+</html>

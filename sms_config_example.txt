@@ -1,0 +1,13 @@
+# SMS Configuration Example
+# 이 파일의 이름을 'sms_config.txt'로 변경하고 내용을 채우세요.
+# Rename this file to 'sms_config.txt' and fill in your details.
+
+# Option 1: CoolSMS (한국)
+# Format: COOL|API_KEY|API_SECRET|SENDER_PHONE|TARGET_PHONE
+# Ex:
+# COOL|NCS2SAMPLEKEY|A1B2C3D4E5|01012345678|01099998888
+
+# Option 2: Twilio (Global)
+# Format: TWILIO|ACCOUNT_SID|AUTH_TOKEN|SENDER_PHONE|TARGET_PHONE
+# Ex:
+# TWILIO|AC1234567890abcdef|a1b2c3d4e5f6|12055551234|821099998888
