@@ -2,6 +2,13 @@
 
 All notable changes to Pi Node Monitor Pro will be documented in this file.
 
+## [2.0.1] - 2026-02-09
+
+### Documentation
+- Added `GURUPIA_DEV_GUIDE.md`: 프로젝트 개발 지침서 (`gurupia-dev` 워크플로우 기반).
+
+---
+
 ## [2.0.0] - 2026-01-27
 
 ### Security Enhancements (P0)
