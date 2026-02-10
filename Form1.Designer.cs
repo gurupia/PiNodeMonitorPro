@@ -649,7 +649,7 @@
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Pi Node Monitor Pro v1.8.26 (Hybrid Layout)";
+            this.Text = "Pi Node Monitor Pro v2.0.1 (Hybrid Layout)";
 
             this.mainFlow.ResumeLayout(false);
             this.mainFlow.PerformLayout();
